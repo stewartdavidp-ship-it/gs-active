@@ -1,0 +1,15 @@
+Game Shelf v1.2.37
+==================
+Release Date: January 25, 2026
+
+BUG FIXES
+---------
+- Fixed service worker version mismatch causing stale cache
+- Added safeguard: empty games shelf now auto-populates with defaults
+- Ensures new/returning users always have games to play
+
+Service Worker:
+- Updated CACHE_VERSION to v1.2.37 (was stuck at v1.2.27)
+- Forces cache refresh on all PWA installations
+
+Previous: v1.2.36 - Action bar replaces floating buttons
