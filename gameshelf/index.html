@@ -13,7 +13,7 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-    <meta name="version" content="1.2.47">
+    <meta name="version" content="1.2.48">
     <meta name="gs-app-id" content="gameshelf">
     <meta name="theme-color" content="#667eea">
     <meta name="description" content="Track your daily puzzle games, build streaks, compete with friends!">
@@ -3523,6 +3523,32 @@
         .hint-sheet {
             max-height: 85vh;
             overflow-y: auto;
+            position: relative;
+        }
+        
+        .hint-sheet-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 1.4rem;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+        
+        .hint-sheet-close:hover {
+            background: var(--bg-primary);
+            color: var(--text-primary);
         }
         
         .hint-sheet-header {
@@ -8000,7 +8026,7 @@
             </svg>
             <div style="display: flex; flex-direction: column; line-height: 1.2;">
                 <span>Game Shelf</span>
-                <span style="font-size: 0.55rem; color: var(--accent-orange); font-weight: 600;">v1.2.47</span>
+                <span style="font-size: 0.55rem; color: var(--accent-orange); font-weight: 600;">v1.2.48</span>
             </div>
         </div>
         <div class="header-right">
@@ -8252,7 +8278,7 @@
             </div>
         </div>
         <div class="settings-footer">
-            <div class="settings-version">Game Shelf PWA v1.2.47</div>
+            <div class="settings-version">Game Shelf PWA v1.2.48</div>
         </div>
     </div>
     
@@ -9521,6 +9547,7 @@ Wordle 1,234 3/6
     <div class="bottom-sheet-overlay" id="hint-sheet-overlay" onclick="closeHintSheet()">
         <div class="bottom-sheet hint-sheet" onclick="event.stopPropagation()">
             <div class="bottom-sheet-handle"></div>
+            <button class="hint-sheet-close" onclick="closeHintSheet()" aria-label="Close hint sheet">×</button>
             
             <div class="hint-sheet-header">
                 <div class="hint-sheet-icon">💡</div>
@@ -12156,17 +12183,15 @@ Wordle 1,234 3/6
                         }, 200);
                         break;
                     
-                    // Shop/Rewards (placeholder)
+                    // Shop/Rewards
                     case 'shop':
-                        // TODO: Implement rewards shop
-                        showToast('Shop coming soon');
+                        showMerchStore();
                         break;
                     
-                    // Contacts finder (placeholder)
+                    // Contacts finder
                     case 'contacts':
                         switchTab('social');
-                        // TODO: Open contacts finder modal
-                        showToast('Contact finder coming soon');
+                        setTimeout(() => findFriendsFromContacts(), 300);
                         break;
                     
                     // Privacy settings (placeholder)
@@ -16700,7 +16725,7 @@ Wordle 1,234 3/6
         }
         
         function showAbout() {
-            const version = '1.2.47';
+            const version = '1.2.48';
             const aboutText = `🧩 Game Shelf PWA
 
 Track your daily puzzle games in one place!
@@ -19490,7 +19515,7 @@ Made with ❤️ for puzzle enthusiasts`;
                     ...data,
                     platform: getPlatform(),
                     isStandalone: isStandalone(),
-                    appVersion: '1.2.47'
+                    appVersion: '1.2.48'
                 }
             };
             
@@ -27602,6 +27627,17 @@ Hint levels:
                 tip: '💡 The badge shows your logged game count'
             },
             {
+                id: 'hint-fab',
+                title: '💡 AI Hint Helper',
+                content: 'Stuck on a puzzle? Tap the <strong>hint button</strong> for AI-powered help! Choose from 10 hint levels - from subtle nudges to full answers.',
+                target: '#hint-fab',
+                position: 'left',
+                action: () => {
+                    switchTab('home');
+                },
+                tip: '🎯 Works with NYT Games, LinkedIn Games, and GS Originals - sign in to use hints'
+            },
+            {
                 id: 'nav-games',
                 title: '🧩 Games Tab',
                 content: 'The <strong>Games tab</strong> shows your full game shelf. Browse all 36+ supported games and add new ones to track.',
@@ -28009,7 +28045,7 @@ Hint levels:
                 }
             }, 1000);
             
-            console.log('🧩 Game Shelf PWA v1.2.47 initialized - Test helpers enabled');
+            console.log('🧩 Game Shelf PWA v1.2.48 initialized - Test helpers enabled');
             console.log('Setup complete:', isSetupComplete());
             console.log('Standalone:', isStandalone(), 'iOS:', isIOS());
         }
