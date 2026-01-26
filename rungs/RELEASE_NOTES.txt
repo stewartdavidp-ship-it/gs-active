@@ -1,0 +1,11 @@
+Rungs v1.0.11
+=============
+Release Date: January 25, 2026
+
+GAME SHELF HINT HELPER INTEGRATION
+----------------------------------
+- Added storeHintData() function
+- Automatically saves puzzle items to localStorage when game loads
+- Enables Game Shelf Hint Helper to auto-detect puzzle data
+- Exposes only the 8 items (NOT pairs, order, or theme)
+- Data stored as gameshelf_hint_data key
