@@ -1,0 +1,11 @@
+Quotle v1.1.1
+=============
+Release Date: January 25, 2026
+
+GAME SHELF HINT HELPER INTEGRATION
+----------------------------------
+- Added storeHintData() function  
+- Automatically saves quote data to localStorage when game loads
+- Enables Game Shelf Hint Helper to auto-detect puzzle data
+- Exposes quote text, category, period, difficulty (NOT the author)
+- Data stored as gameshelf_hint_data key
