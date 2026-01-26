@@ -9,12 +9,12 @@
 
 | App | Version | Key Features |
 |-----|---------|--------------|
-| Game Shelf | 1.2.48 | Deep link fixes, tutorial update |
+| Game Shelf | 1.2.49 | Deep link fixes, tutorial update |
 | Quotle | 1.2.2 | 390 quotes, PWA path fixes, presidential quotes |
 | Rungs | 1.0.12 | Fixed rung movement direction |
 | Slate | 1.0.12 | Word puzzle game |
 | Word Boxing | 1.0.7 | Multiplayer word battle |
-| Command Center | 7.2.5 | Deployment management |
+| Command Center | 7.2.6 | Deployment management |
 | Test Plan | 4.0.1 | Added version meta tag |
 | Landing Page | 1.1.0 | Marketing page |
 
