@@ -13,7 +13,7 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-    <meta name="version" content="1.2.48">
+    <meta name="version" content="1.2.61">
     <meta name="gs-app-id" content="gameshelf">
     <meta name="theme-color" content="#667eea">
     <meta name="description" content="Track your daily puzzle games, build streaks, compete with friends!">
@@ -3528,22 +3528,22 @@
         
         .hint-sheet-close {
             position: absolute;
-            top: 12px;
-            right: 12px;
-            width: 32px;
-            height: 32px;
+            top: calc(16px + env(safe-area-inset-top, 0px));
+            right: 16px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             background: var(--bg-tertiary);
             border: 1px solid var(--border);
             color: var(--text-muted);
-            font-size: 1.4rem;
+            font-size: 1.5rem;
             line-height: 1;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.2s;
-            z-index: 10;
+            z-index: 100;
         }
         
         .hint-sheet-close:hover {
@@ -8026,7 +8026,7 @@
             </svg>
             <div style="display: flex; flex-direction: column; line-height: 1.2;">
                 <span>Game Shelf</span>
-                <span style="font-size: 0.55rem; color: var(--accent-orange); font-weight: 600;">v1.2.48</span>
+                <span style="font-size: 0.55rem; color: var(--accent-orange); font-weight: 600;">v1.2.61</span>
             </div>
         </div>
         <div class="header-right">
@@ -8046,12 +8046,13 @@
             <button class="settings-close" onclick="toggleSettingsMenu()">✕</button>
         </div>
         <div class="settings-body">
-            <!-- Wallet Display - at top of menu -->
-            <div class="settings-section" style="padding: 16px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); border-radius: 12px; margin: 0 16px 16px;">
+            <!-- Wallet Display - at top of menu (tappable) -->
+            <div class="settings-section" style="padding: 16px; background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); border-radius: 12px; margin: 0 16px 16px; cursor: pointer;" onclick="showWalletOptionsSheet()">
                 <div style="display: flex; justify-content: center; gap: 24px; font-size: 1.1rem;">
                     <span class="tokens" style="display: flex; align-items: center; gap: 6px;">💎 <span id="token-count" style="font-weight: 700;">0</span></span>
                     <span class="coins" style="display: flex; align-items: center; gap: 6px;">🪙 <span id="coin-count" style="font-weight: 700;">0</span></span>
                 </div>
+                <div style="text-align: center; font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">Tap to manage wallet</div>
             </div>
             
             <!-- Settings Submenu Toggle - NOW AT TOP -->
@@ -8278,7 +8279,7 @@
             </div>
         </div>
         <div class="settings-footer">
-            <div class="settings-version">Game Shelf PWA v1.2.48</div>
+            <div class="settings-version">Game Shelf PWA v1.2.61</div>
         </div>
     </div>
     
@@ -10565,7 +10566,7 @@ Wordle 1,234 3/6
                     </div>
                     <div class="referral-stat">
                         <span class="referral-stat-value" id="referral-friends-engaged">0</span>
-                        <span class="referral-stat-label">Engaged</span>
+                        <span class="referral-stat-label">Purchased</span>
                     </div>
                 </div>
             </div>
@@ -10612,14 +10613,14 @@ Wordle 1,234 3/6
                 <div class="referral-tier">
                     <div class="referral-tier-icon">⭐</div>
                     <div class="referral-tier-info">
-                        <div class="referral-tier-name">Friend Gets Engaged</div>
-                        <div class="referral-tier-desc">Joins Battle or shares results</div>
+                        <div class="referral-tier-name">Friend Buys Coins</div>
+                        <div class="referral-tier-desc">They make their first purchase</div>
                     </div>
-                    <div class="referral-tier-reward">+50 🎟️</div>
+                    <div class="referral-tier-reward">+100 🎟️</div>
                 </div>
                 <div class="referral-tier-total">
                     <span>Total per friend:</span>
-                    <span class="referral-tier-reward">110 🎟️</span>
+                    <span class="referral-tier-reward">160 🎟️</span>
                 </div>
             </div>
             
@@ -10950,7 +10951,7 @@ Wordle 1,234 3/6
         // Share invite link (uses referral link)
         function shareFriendLink() {
             const link = getReferralLink();
-            const message = `Join me on Game Shelf! 🎮\n\nTrack daily puzzles, compete in battles, and build streaks together.\n\n✨ You'll get 100 bonus tokens when you sign up!\n\n${link}`;
+            const message = `Join me on Game Shelf! 🎮\n\nTrack daily puzzles, compete in battles, and build streaks together.\n\n✨ You'll get 50 bonus tokens when you sign up!\n\n${link}`;
             
             if (navigator.share) {
                 navigator.share({
@@ -13765,7 +13766,7 @@ Wordle 1,234 3/6
                 games: DEFAULT_SHELF.map(id => ({ id, addedAt: new Date().toISOString() })),
                 stats: {},
                 history: {},
-                wallet: { tokens: 100, coins: 0 },
+                wallet: { tokens: 50, coins: 0 },
                 achievements: {},
                 dailyGoal: 5,
                 friends: [],
@@ -13788,9 +13789,41 @@ Wordle 1,234 3/6
         
         function saveData() {
             try {
+                // Prune old grids before saving (keep last 30 days)
+                pruneOldGrids();
                 localStorage.setItem('gameShelfData', JSON.stringify(appData));
             } catch (e) {
                 console.error('Save error:', e);
+            }
+        }
+        
+        // Remove grid data from entries older than 31 days to save storage
+        function pruneOldGrids() {
+            if (!appData.history) return;
+            
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - 31);
+            const cutoffStr = cutoffDate.toISOString().split('T')[0];
+            
+            let pruned = 0;
+            for (const dateStr of Object.keys(appData.history)) {
+                if (dateStr < cutoffStr) {
+                    // Remove grid and shareText from old entries
+                    for (const gameId of Object.keys(appData.history[dateStr])) {
+                        const entry = appData.history[dateStr][gameId];
+                        if (entry.grid) {
+                            delete entry.grid;
+                            pruned++;
+                        }
+                        if (entry.shareText) {
+                            delete entry.shareText;
+                        }
+                    }
+                }
+            }
+            
+            if (pruned > 0) {
+                console.log(`[STORAGE] Pruned ${pruned} old grids (>31 days)`);
             }
         }
         
@@ -14998,7 +15031,9 @@ Wordle 1,234 3/6
                 score: result.score,
                 won: result.won,
                 numericScore: result.numericScore || 0,
-                time: new Date().toISOString()
+                time: new Date().toISOString(),
+                grid: result.grid || null,  // Save the emoji grid for sharing
+                shareText: result.shareText || null  // Save original share text if available
             };
             
             // Update stats
@@ -15067,6 +15102,10 @@ Wordle 1,234 3/6
             // Check achievements
             checkTimeAchievements();
             checkAndUnlockAchievements();
+            
+            // Check engagement rewards (tokens)
+            checkFiveDayStreakReward();
+            checkAllGsGamesReward();
             
             // Update battle scores if in active battle
             updateBattleScore(result.gameId, result.numericScore || 1);
@@ -15151,6 +15190,16 @@ Wordle 1,234 3/6
                             appData[key] = cloudData[key];
                         }
                     });
+                    
+                    // CRITICAL: Merge wallet from cloud (cloud wins for coins since server adds them)
+                    if (cloudData.wallet) {
+                        if (!appData.wallet) appData.wallet = { tokens: 0, coins: 0 };
+                        // Cloud wins for coins (purchases happen server-side)
+                        appData.wallet.coins = cloudData.wallet.coins || 0;
+                        // For tokens, take the higher value (could be earned locally or from cloud)
+                        appData.wallet.tokens = Math.max(appData.wallet.tokens || 0, cloudData.wallet.tokens || 0);
+                        console.log('[SYNC] Wallet synced from cloud:', appData.wallet);
+                    }
                     
                     console.log('[SYNC] Merge complete. Saving...');
                     saveData();
@@ -15705,9 +15754,9 @@ Wordle 1,234 3/6
         
         // ============ REFERRAL SYSTEM ============
         const REFERRAL_REWARDS = {
-            invite: 10,      // Tier 1: Send invite
-            joined: 50,      // Tier 2: Friend signs up
-            engaged: 50      // Tier 3: Friend uses advanced feature
+            sent: 10,        // Tier 1: Send referral email
+            joined: 50,      // Tier 2: Friend creates Firebase account
+            purchased: 100   // Tier 3: Friend buys first coin
         };
         
         // Use the utility function defined in URL UTILITIES section
@@ -15893,15 +15942,15 @@ Wordle 1,234 3/6
             
             sessionStorage.setItem('lastInviteSent', now.toString());
             appData.referral.invitesSent++;
-            appData.referral.totalEarned += REFERRAL_REWARDS.invite;
-            appData.wallet.tokens += REFERRAL_REWARDS.invite;
+            appData.referral.totalEarned += REFERRAL_REWARDS.sent;
+            appData.wallet.tokens += REFERRAL_REWARDS.sent;
             
             saveData();
             renderWallet();
-            showToast(`+${REFERRAL_REWARDS.invite} 🎟️ tokens for sharing!`);
+            showToast(`+${REFERRAL_REWARDS.sent} 🎟️ tokens for sharing!`);
             
             // Log activity
-            logActivity('referral-invite', { tokens: REFERRAL_REWARDS.invite });
+            logActivity('referral-invite', { tokens: REFERRAL_REWARDS.sent });
         }
         
         function checkReferralParam() {
@@ -16008,10 +16057,10 @@ Wordle 1,234 3/6
                 }
                 appData.referral.referredBy = refCode;
                 
-                // Award new user welcome bonus
-                appData.wallet.tokens += 100;
+                // New users already get 50 tokens from default wallet
+                // Just save the referral connection
                 saveData();
-                showToast('🎉 Welcome! You got 100 bonus tokens!');
+                showToast('🎉 Welcome! You have 50 bonus tokens to get started!');
                 
                 // Update referrer's data in Firebase
                 await db.ref(`referralCodes/${refCode}/referees/${currentUser.uid}`).set({
@@ -16725,7 +16774,7 @@ Wordle 1,234 3/6
         }
         
         function showAbout() {
-            const version = '1.2.48';
+            const version = '1.2.61';
             const aboutText = `🧩 Game Shelf PWA
 
 Track your daily puzzle games in one place!
@@ -17854,6 +17903,8 @@ Made with ❤️ for puzzle enthusiasts`;
                 // Deduct entry fee
                 if (entryFee > 0) {
                     appData.wallet.coins -= entryFee;
+                    // Award tokens for coin-based battle participation
+                    awardBattleParticipationTokens(name);
                     saveData();
                     renderWallet();
                 }
@@ -18052,6 +18103,8 @@ Made with ❤️ for puzzle enthusiasts`;
                 // Deduct entry fee
                 if (entryFee > 0) {
                     appData.wallet.coins -= entryFee;
+                    // Award tokens for coin-based battle participation
+                    awardBattleParticipationTokens(battle.name);
                     saveData();
                     renderWallet();
                 }
@@ -18823,6 +18876,8 @@ Made with ❤️ for puzzle enthusiasts`;
                 // Deduct entry fee
                 if (entryFee > 0) {
                     appData.wallet.coins -= entryFee;
+                    // Award tokens for coin-based battle participation
+                    awardBattleParticipationTokens(battle.name || 'Battle');
                     saveData();
                     renderWallet();
                     
@@ -18907,6 +18962,546 @@ Made with ❤️ for puzzle enthusiasts`;
             if (coinEl) coinEl.textContent = appData.wallet.coins || 0;
         }
         
+        // Show wallet options when tapping on wallet display
+        function showWalletOptionsSheet() {
+            toggleSettingsMenu(); // Close menu first
+            const tokens = appData.wallet?.tokens || 0;
+            const coins = appData.wallet?.coins || 0;
+            
+            showGenericSheet({
+                title: '💎 Your Wallet',
+                content: `
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="display: flex; justify-content: center; gap: 32px; margin-bottom: 24px;">
+                            <div>
+                                <div style="font-size: 2.5rem;">💎</div>
+                                <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-purple);">${tokens}</div>
+                                <div style="font-size: 0.8rem; color: var(--text-muted);">Tokens</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 2.5rem;">🪙</div>
+                                <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-gold);">${coins}</div>
+                                <div style="font-size: 0.8rem; color: var(--text-muted);">Coins</div>
+                            </div>
+                        </div>
+                        
+                        <div style="background: var(--bg-tertiary); border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: left;">
+                            <div style="font-size: 0.85rem; color: var(--text-muted);">
+                                <div style="margin-bottom: 8px;">💎 <strong>Tokens</strong> = AI hints (5 per hint) & battles</div>
+                                <div style="margin-bottom: 8px;">🪙 <strong>Coins</strong> = Convert to tokens or wager in battles</div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">⚔️ Battle wagers: up to 5 coins or 500 tokens per battle</div>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <button onclick="showBuyCoinsSheet();" style="
+                                width: 100%;
+                                padding: 16px;
+                                background: linear-gradient(135deg, var(--accent-gold), #e6c200);
+                                border: none;
+                                border-radius: 12px;
+                                color: #1a1a2e;
+                                font-weight: 600;
+                                font-size: 1rem;
+                                cursor: pointer;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                gap: 8px;
+                            ">
+                                💰 Buy Coins
+                            </button>
+                            ${coins > 0 ? `
+                            <button onclick="showConvertCoinsSheet();" style="
+                                width: 100%;
+                                padding: 16px;
+                                background: linear-gradient(135deg, var(--accent-green), #38a169);
+                                border: none;
+                                border-radius: 12px;
+                                color: white;
+                                font-weight: 600;
+                                font-size: 1rem;
+                                cursor: pointer;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                gap: 8px;
+                            ">
+                                🔄 Convert Coins to Tokens
+                            </button>
+                            ` : ''}
+                            <button onclick="showReferralSheet(); closeGenericSheet();" style="
+                                width: 100%;
+                                padding: 16px;
+                                background: linear-gradient(135deg, var(--accent-purple), #764ba2);
+                                border: none;
+                                border-radius: 12px;
+                                color: white;
+                                font-weight: 600;
+                                font-size: 1rem;
+                                cursor: pointer;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                gap: 8px;
+                            ">
+                                📧 Invite Friends for Tokens
+                            </button>
+                        </div>
+                        
+                        <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
+                            <a href="#" onclick="showTermsSheet(); return false;" style="font-size: 0.8rem; color: var(--text-muted);">
+                                Terms & Conditions
+                            </a>
+                        </div>
+                    </div>
+                `
+            });
+        }
+        
+        // ============ TOKEN/COIN MANAGEMENT ============
+        
+        // Show Terms & Conditions
+        function showTermsSheet() {
+            closeGenericSheet();
+            showGenericSheet({
+                title: '📋 Terms & Conditions',
+                content: `
+                    <div style="padding: 16px; font-size: 0.9rem; line-height: 1.6;">
+                        <h4 style="margin: 0 0 12px; color: var(--text-primary);">Game Shelf Token & Coin System</h4>
+                        
+                        <div style="margin-bottom: 16px;">
+                            <strong>Account Requirements</strong>
+                            <ul style="margin: 8px 0; padding-left: 20px; color: var(--text-secondary);">
+                                <li>A Google account is required to use Game Shelf features including AI hints, battles, and purchases</li>
+                                <li>You must be signed in to earn or spend tokens</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="margin-bottom: 16px;">
+                            <strong>Coin Purchases</strong>
+                            <ul style="margin: 8px 0; padding-left: 20px; color: var(--text-secondary);">
+                                <li>Coins cost $1 USD each</li>
+                                <li>Minimum purchase: 10 coins ($10 USD)</li>
+                                <li>All purchases are processed securely via Stripe</li>
+                                <li>Coins are non-refundable once purchased</li>
+                                <li>Weekly purchase limit: $50 USD</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="margin-bottom: 16px;">
+                            <strong>Tokens & Hints</strong>
+                            <ul style="margin: 8px 0; padding-left: 20px; color: var(--text-secondary);">
+                                <li>AI hints cost 5 tokens each</li>
+                                <li>1 coin converts to 100 tokens</li>
+                                <li>New users receive 50 bonus tokens</li>
+                                <li>Tokens can be earned through referrals</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="margin-bottom: 16px;">
+                            <strong>Referral Program</strong>
+                            <ul style="margin: 8px 0; padding-left: 20px; color: var(--text-secondary);">
+                                <li>Send invite: +10 tokens</li>
+                                <li>Friend signs up: +50 tokens</li>
+                                <li>Friend makes first purchase: +100 tokens</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--border);">
+                            By using Game Shelf, you agree to these terms. Terms may be updated periodically.
+                        </div>
+                    </div>
+                `
+            });
+        }
+        
+        function showInsufficientTokensSheet(current, needed) {
+            const coinsAvailable = appData.wallet?.coins || 0;
+            showGenericSheet({
+                title: '💎 Need More Tokens',
+                content: `
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="font-size: 3rem; margin-bottom: 16px;">💎</div>
+                        <div style="font-size: 1.1rem; margin-bottom: 8px;">
+                            You have <strong>${current}</strong> tokens
+                        </div>
+                        <div style="color: var(--text-muted); margin-bottom: 24px;">
+                            Hints cost <strong>${needed}</strong> tokens each
+                        </div>
+                        
+                        <div style="text-align: left; background: var(--bg-tertiary); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+                            <div style="font-weight: 600; margin-bottom: 12px;">💡 Ways to get tokens:</div>
+                            <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem;">
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span>📧 Invite a friend</span>
+                                    <strong style="color: var(--accent-purple);">+10</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span>👋 Friend signs up</span>
+                                    <strong style="color: var(--accent-purple);">+50</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span>💰 Friend buys coins</span>
+                                    <strong style="color: var(--accent-purple);">+100</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--border-color);">
+                                    <span>🔄 Convert 1 coin</span>
+                                    <strong style="color: var(--accent-gold);">= 100 tokens</strong>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <button class="btn-primary" style="width: 100%; padding: 14px;" onclick="showReferralSheet(); closeGenericSheet();">
+                                📧 Invite Friends
+                            </button>
+                            <button class="btn-secondary" style="width: 100%; padding: 14px;" onclick="showBuyCoinsSheet();">
+                                💰 Buy Coins
+                            </button>
+                            ${coinsAvailable > 0 ? `
+                            <button class="btn-secondary" style="width: 100%; padding: 14px;" onclick="showConvertCoinsSheet();">
+                                🔄 Convert Coins (${coinsAvailable} available)
+                            </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `
+            });
+        }
+        
+        function showBuyCoinsSheet() {
+            closeGenericSheet();
+            showGenericSheet({
+                title: '💰 Buy Coins',
+                content: `
+                    <div style="padding: 20px;">
+                        <div style="text-align: center; margin-bottom: 24px;">
+                            <div style="font-size: 3rem;">🪙</div>
+                            <div style="font-size: 1.4rem; font-weight: 700; color: var(--accent-gold); margin-top: 8px;">
+                                $1 per coin
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 24px;">
+                            <label style="display: block; margin-bottom: 10px; font-size: 0.9rem; color: var(--text-secondary);">How many coins?</label>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <button onclick="adjustCoinAmount(-10)" style="
+                                    width: 48px; height: 48px;
+                                    background: var(--bg-tertiary);
+                                    border: 1px solid var(--border);
+                                    border-radius: 10px;
+                                    color: var(--text-primary);
+                                    font-size: 1.4rem;
+                                    cursor: pointer;
+                                ">−</button>
+                                <input type="number" id="buy-coins-amount" min="10" max="100" value="10" 
+                                    style="flex: 1; padding: 16px; text-align: center; font-size: 1.6rem; font-weight: 700; border-radius: 10px; border: 2px solid var(--accent-gold); background: var(--bg-tertiary); color: var(--accent-gold);"
+                                    onchange="updateBuyPreview()"
+                                    oninput="updateBuyPreview()"
+                                >
+                                <button onclick="adjustCoinAmount(10)" style="
+                                    width: 48px; height: 48px;
+                                    background: var(--bg-tertiary);
+                                    border: 1px solid var(--border);
+                                    border-radius: 10px;
+                                    color: var(--text-primary);
+                                    font-size: 1.4rem;
+                                    cursor: pointer;
+                                ">+</button>
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; text-align: center;">Minimum: 10 coins</div>
+                        </div>
+                        
+                        <div id="buy-preview" style="padding: 20px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px; text-align: center;">
+                            <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 4px;">Total</div>
+                            <div style="font-size: 2rem; font-weight: 700; color: var(--accent-green);">$10</div>
+                        </div>
+                        
+                        <button onclick="purchaseCoinsFromInput()" style="
+                            width: 100%;
+                            padding: 18px;
+                            background: linear-gradient(135deg, var(--accent-gold), #e6c200);
+                            border: none;
+                            border-radius: 12px;
+                            color: #1a1a2e;
+                            font-weight: 700;
+                            font-size: 1.1rem;
+                            cursor: pointer;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            gap: 8px;
+                        ">
+                            💳 Purchase Coins
+                        </button>
+                        
+                        <div style="margin-top: 16px; padding: 12px; background: var(--bg-tertiary); border-radius: 8px; font-size: 0.8rem; color: var(--text-muted); text-align: center;">
+                            🔒 Secure payment via Stripe<br>
+                            <a href="#" onclick="showTermsSheet(); return false;" style="color: var(--accent-purple);">Terms & Conditions</a>
+                        </div>
+                    </div>
+                `
+            });
+        }
+        
+        function adjustCoinAmount(delta) {
+            const input = document.getElementById('buy-coins-amount');
+            let value = parseInt(input.value) || 10;
+            value = Math.max(10, Math.min(100, value + delta));
+            input.value = value;
+            updateBuyPreview();
+        }
+        
+        function updateBuyPreview() {
+            const input = document.getElementById('buy-coins-amount');
+            let amount = parseInt(input.value) || 10;
+            amount = Math.max(10, Math.min(100, amount));
+            const preview = document.getElementById('buy-preview');
+            if (preview) {
+                preview.innerHTML = `
+                    <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 4px;">Total</div>
+                    <div style="font-size: 2rem; font-weight: 700; color: var(--accent-green);">$${amount}</div>
+                `;
+            }
+        }
+        
+        function purchaseCoinsFromInput() {
+            const input = document.getElementById('buy-coins-amount');
+            let amount = parseInt(input.value) || 10;
+            amount = Math.max(10, Math.min(100, amount));
+            purchaseCoins(amount);
+        }
+        
+        async function purchaseCoins(amount) {
+            if (!currentUser) {
+                showToast('Please sign in to purchase coins');
+                return;
+            }
+            
+            if (amount < 10 || amount > 100) {
+                showToast('Please select 10-100 coins', 'error');
+                return;
+            }
+            
+            closeGenericSheet();
+            showToast('🔄 Preparing checkout...');
+            
+            try {
+                // Call Firebase function to create Stripe checkout session
+                const createCheckout = firebase.functions().httpsCallable('createCoinCheckout');
+                const result = await createCheckout({ 
+                    coinAmount: amount,
+                    successUrl: window.location.href.split('?')[0] + '?purchase=success',
+                    cancelUrl: window.location.href.split('?')[0] + '?purchase=cancelled'
+                });
+                
+                // Redirect to Stripe checkout
+                if (result.data.checkoutUrl) {
+                    window.location.href = result.data.checkoutUrl;
+                } else {
+                    throw new Error('No checkout URL returned');
+                }
+                
+            } catch (error) {
+                console.error('Purchase error:', error);
+                // Show more specific error message
+                const message = error.message || error.details || 'Purchase failed';
+                if (message.includes('unauthenticated')) {
+                    showToast('Please sign in to purchase', 'error');
+                } else if (message.includes('internal')) {
+                    showToast('Payment service error. Try again.', 'error');
+                } else {
+                    showToast('Purchase error: ' + message, 'error');
+                }
+            }
+        }
+        
+        function showConvertCoinsSheet() {
+            const coins = appData.wallet?.coins || 0;
+            
+            if (coins === 0) {
+                showToast('No coins to convert');
+                return;
+            }
+            
+            closeGenericSheet();
+            showGenericSheet({
+                title: '🔄 Convert Coins to Tokens',
+                content: `
+                    <div style="padding: 20px; text-align: center;">
+                        <div style="font-size: 2.5rem; margin-bottom: 8px;">🪙 → 💎</div>
+                        <div style="margin-bottom: 20px;">
+                            <div style="font-size: 1.2rem; font-weight: 600;">You have ${coins} coins</div>
+                            <div style="color: var(--text-muted); font-size: 0.85rem;">1 coin = 100 tokens</div>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; font-size: 0.9rem;">Convert how many coins?</label>
+                            <input type="number" id="convert-coins-amount" min="1" max="${coins}" value="1" 
+                                style="width: 80px; padding: 12px; text-align: center; font-size: 1.2rem; border-radius: 8px; border: 2px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-primary);"
+                                onchange="updateConversionPreview()"
+                                oninput="updateConversionPreview()"
+                            >
+                        </div>
+                        
+                        <div id="conversion-preview" style="padding: 16px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 20px;">
+                            <div style="font-size: 0.85rem; color: var(--text-muted);">You'll receive</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-purple);">💎 100 tokens</div>
+                        </div>
+                        
+                        <button class="btn-primary" style="width: 100%; padding: 14px;" onclick="convertCoins()">
+                            Convert Coins
+                        </button>
+                    </div>
+                `
+            });
+        }
+        
+        function updateConversionPreview() {
+            const input = document.getElementById('convert-coins-amount');
+            const amount = parseInt(input?.value) || 0;
+            const tokens = amount * 100;
+            const preview = document.getElementById('conversion-preview');
+            if (preview) {
+                preview.innerHTML = `
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">You'll receive</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-purple);">💎 ${tokens.toLocaleString()} tokens</div>
+                `;
+            }
+        }
+        
+        async function convertCoins() {
+            const input = document.getElementById('convert-coins-amount');
+            const amount = parseInt(input?.value) || 0;
+            const coins = appData.wallet?.coins || 0;
+            
+            if (amount < 1 || amount > coins) {
+                showToast('Invalid amount', 'error');
+                return;
+            }
+            
+            // Update locally
+            appData.wallet.coins -= amount;
+            appData.wallet.tokens = (appData.wallet.tokens || 0) + (amount * 100);
+            saveData();
+            renderWallet();
+            
+            closeGenericSheet();
+            showToast(`🎉 Converted ${amount} coin${amount > 1 ? 's' : ''} to ${(amount * 100).toLocaleString()} tokens!`);
+            
+            // Sync to cloud
+            if (currentUser) {
+                await saveToCloud();
+            }
+            
+            // Log activity
+            logActivity('coins-converted', { coins: amount, tokens: amount * 100 });
+        }
+        
+        // Check for successful purchase on page load
+        function checkPurchaseResult() {
+            const params = new URLSearchParams(window.location.search);
+            const purchaseStatus = params.get('purchase');
+            
+            if (purchaseStatus === 'success') {
+                // Clear URL param
+                window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+                
+                // Refresh wallet from server (Stripe webhook will have updated it)
+                setTimeout(async () => {
+                    if (currentUser) {
+                        await loadFromCloud();
+                        renderWallet();
+                    }
+                    showToast('🎉 Purchase complete! Coins added to your wallet.');
+                    
+                    // Log activity
+                    logActivity('coins-purchased', { status: 'success' });
+                }, 1000);
+            } else if (purchaseStatus === 'cancelled') {
+                window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+                showToast('Purchase cancelled');
+            }
+        }
+        
+        // ============ ENGAGEMENT REWARDS ============
+        // One-time and recurring token rewards for player engagement
+        
+        const GS_ORIGINAL_GAMES = ['quotle', 'slate', 'rungs', 'wordboxing'];
+        
+        // Initialize rewards tracking if needed
+        function initRewardsTracking() {
+            if (!appData.rewards) {
+                appData.rewards = {
+                    fiveDayStreak: false,   // 50 tokens for first 5-day streak
+                    allGsGames: false       // 20 tokens for playing all 4 GS games
+                };
+            }
+        }
+        
+        // Check for 5-day streak reward (50 tokens, one-time)
+        function checkFiveDayStreakReward() {
+            initRewardsTracking();
+            
+            if (appData.rewards.fiveDayStreak) return; // Already claimed
+            
+            // Check if any game has 5+ day streak
+            const hasStreak = Object.values(appData.stats || {}).some(
+                stat => (stat.currentStreak || 0) >= 5
+            );
+            
+            if (hasStreak) {
+                appData.rewards.fiveDayStreak = true;
+                appData.wallet.tokens = (appData.wallet?.tokens || 0) + 50;
+                saveData();
+                renderWallet();
+                
+                // Show celebration
+                setTimeout(() => {
+                    showToast('🎉 +50 tokens for your first 5-day streak!');
+                    logActivity('reward-earned', { type: 'five-day-streak', tokens: 50 });
+                }, 1000);
+            }
+        }
+        
+        // Check for all GS games played reward (20 tokens, one-time)
+        function checkAllGsGamesReward() {
+            initRewardsTracking();
+            
+            if (appData.rewards.allGsGames) return; // Already claimed
+            
+            // Check if user has played all 4 GS original games
+            const playedGames = Object.keys(appData.stats || {});
+            const hasPlayedAll = GS_ORIGINAL_GAMES.every(gameId => 
+                playedGames.includes(gameId) && 
+                (appData.stats[gameId]?.gamesPlayed || 0) > 0
+            );
+            
+            if (hasPlayedAll) {
+                appData.rewards.allGsGames = true;
+                appData.wallet.tokens = (appData.wallet?.tokens || 0) + 20;
+                saveData();
+                renderWallet();
+                
+                // Show celebration
+                setTimeout(() => {
+                    showToast('🎉 +20 tokens for trying all Game Shelf originals!');
+                    logActivity('reward-earned', { type: 'all-gs-games', tokens: 20 });
+                }, 1500);
+            }
+        }
+        
+        // Award tokens for coin-based battle participation (5 tokens per battle)
+        function awardBattleParticipationTokens(battleName) {
+            appData.wallet.tokens = (appData.wallet?.tokens || 0) + 5;
+            saveData();
+            renderWallet();
+            
+            showToast('🎟️ +5 tokens for battle participation!');
+            logActivity('reward-earned', { type: 'battle-participation', tokens: 5, battle: battleName });
+        }
+
         // ============ STATS SCREEN (v1.2.47) ============
         function renderStatsScreen() {
             const summaryContainer = document.getElementById('stats-summary');
@@ -19515,7 +20110,7 @@ Made with ❤️ for puzzle enthusiasts`;
                     ...data,
                     platform: getPlatform(),
                     isStandalone: isStandalone(),
-                    appVersion: '1.2.48'
+                    appVersion: '1.2.61'
                 }
             };
             
@@ -19866,22 +20461,26 @@ Made with ❤️ for puzzle enthusiasts`;
         let pendingLaunchGame = null;
         let pendingTutorialGame = null; // Game waiting for tutorial completion
         
-        async function playGame(gameId, forceVisit = false) {
+        async function playGame(gameId, forceVisit = false, skipUnrecordedCheck = false) {
             const game = GAMES[gameId];
             if (!game) return;
             
-            // Hard gate: Check clipboard before launching
-            // Only check if user returned from a game (has pending context)
-            // This prevents clipboard permission popup on fresh app open
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-            const hasPendingContext = isIOS ? pendingClipboardCheck : (lastLaunchedGame && !clipboardCheckCompletedThisReturn);
-            
-            if (!forceVisit && hasPendingContext) {
-                try {
-                    const shouldProceed = await checkClipboardBeforeLaunch(gameId);
-                    if (!shouldProceed) return; // Modal is handling the flow
-                } catch (e) {
-                    console.log('Clipboard check error, proceeding:', e.message);
+            // Check if user has an unrecorded game from a previous visit
+            // Only check if:
+            // 1. Not forcing visit
+            // 2. Not skipping this check (user chose "go to new game")
+            // 3. There's a lastLaunchedGame that's different from current game
+            // 4. The lastLaunchedGame wasn't recorded today
+            if (!forceVisit && !skipUnrecordedCheck && lastLaunchedGame && lastLaunchedGame !== gameId) {
+                const todayHistory = getTodayHistory();
+                if (!todayHistory[lastLaunchedGame]) {
+                    // Check if enough time passed (at least 30 seconds)
+                    const elapsed = Date.now() - (lastLaunchTime || 0);
+                    if (elapsed > 30000) {
+                        // Show unrecorded game prompt
+                        showUnrecordedGamePrompt(lastLaunchedGame, gameId);
+                        return;
+                    }
                 }
             }
             
@@ -20694,16 +21293,8 @@ Made with ❤️ for puzzle enthusiasts`;
             setTimeout(() => playGame(gameId), 500);
         }
         
-        // Return-from-game detection
+        // Return-from-game detection - only restores state, prompting happens when clicking new game
         function checkReturnFromGame() {
-            // iOS: Skip this flow - we use gesture-deferred clipboard check instead
-            // The game card tap will check clipboard and show appropriate modal
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-            if (isIOS) {
-                console.log('🎮 iOS: Skipping return prompt (using gesture-deferred flow)');
-                return;
-            }
-            
             // Restore from localStorage if memory state is empty (e.g., after app restart)
             if (!lastLaunchedGame || !lastLaunchTime) {
                 const activeGame = getActiveGame();
@@ -20716,7 +21307,7 @@ Made with ❤️ for puzzle enthusiasts`;
                 }
             }
             
-            // Don't show if launch was more than 30 minutes ago (stale)
+            // Clear if launch was more than 30 minutes ago (stale)
             const elapsed = Date.now() - lastLaunchTime;
             if (elapsed > 30 * 60 * 1000) {
                 console.log('🎮 Clearing stale active game (>30min old)');
@@ -20724,34 +21315,17 @@ Made with ❤️ for puzzle enthusiasts`;
                 return;
             }
             
-            // Don't show if prompt was dismissed for this game
-            if (returnPromptDismissedFor === lastLaunchedGame) return;
-            
-            // Don't show if it's been less than 30 seconds (they didn't really play)
-            if (elapsed < 30000) return;
-            
-            // Don't show if game was already logged (use fresh data from appData)
+            // Clear if game was already logged today
             const todayHistory = appData.history[getTodayString()] || {};
             if (todayHistory[lastLaunchedGame]) {
-                console.log(`🎮 Game ${lastLaunchedGame} already logged, skipping return prompt`);
+                console.log(`🎮 Game ${lastLaunchedGame} already logged, clearing active game`);
                 clearActiveGame();
                 return;
             }
             
-            // Don't show if clipboard already detected this game
-            if (detectedClipboard?.result?.gameId === lastLaunchedGame) return;
-            
-            // Don't show if return prompt is already visible
-            const prompt = document.getElementById('return-prompt');
-            if (prompt && prompt.classList.contains('visible')) {
-                console.log('🎮 Return prompt already visible, skipping');
-                return;
-            }
-            
-            const game = GAMES[lastLaunchedGame];
-            if (!game) return;
-            
-            showReturnPrompt(game);
+            // Note: We no longer show automatic return prompt here
+            // Instead, user will be prompted when they click on a different game
+            console.log(`🎮 User returned from ${lastLaunchedGame}, will prompt on next game click`);
         }
         
         function showReturnPrompt(game) {
@@ -20808,6 +21382,122 @@ Made with ❤️ for puzzle enthusiasts`;
             dismissReturnPrompt();
             // Open log sheet with this game pre-selected
             openLogSheetForGame(lastLaunchedGame);
+        }
+        
+        // Track pending game for unrecorded prompt
+        let pendingUnrecordedTargetGame = null;
+        
+        function showUnrecordedGamePrompt(unrecordedGameId, targetGameId) {
+            const unrecordedGame = GAMES[unrecordedGameId];
+            const targetGame = GAMES[targetGameId];
+            if (!unrecordedGame || !targetGame) {
+                // Fallback - just launch the new game
+                clearActiveGame();
+                playGame(targetGameId, false, true);
+                return;
+            }
+            
+            pendingUnrecordedTargetGame = targetGameId;
+            
+            showGenericSheet({
+                title: '📋 Record Previous Game?',
+                content: `
+                    <div style="padding: 20px; text-align: center;">
+                        <div style="font-size: 3rem; margin-bottom: 12px;">${unrecordedGame.icon}</div>
+                        <p style="color: var(--text-secondary); margin-bottom: 8px; font-size: 1rem;">
+                            You visited <strong>${unrecordedGame.name}</strong> but didn't record your result.
+                        </p>
+                        <p style="color: var(--text-muted); margin-bottom: 24px; font-size: 0.85rem;">
+                            If you finished playing, record it now. Otherwise, continue to your next game.
+                        </p>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <button onclick="handleUnrecordedRecord()" style="
+                                width: 100%;
+                                padding: 16px;
+                                background: linear-gradient(135deg, var(--accent-purple), #764ba2);
+                                border: none;
+                                border-radius: 12px;
+                                color: white;
+                                font-size: 1rem;
+                                font-weight: 600;
+                                cursor: pointer;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                gap: 8px;
+                            ">
+                                📝 Record ${unrecordedGame.name}
+                            </button>
+                            
+                            <button onclick="handleUnrecordedSkip()" style="
+                                width: 100%;
+                                padding: 16px;
+                                background: var(--bg-tertiary);
+                                border: 1px solid var(--border);
+                                border-radius: 12px;
+                                color: var(--text-primary);
+                                font-size: 1rem;
+                                cursor: pointer;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                gap: 8px;
+                            ">
+                                🎮 Go to ${targetGame.name}
+                            </button>
+                        </div>
+                    </div>
+                `
+            });
+        }
+        
+        async function handleUnrecordedRecord() {
+            closeGenericSheet();
+            
+            // Try to read clipboard and auto-record
+            try {
+                const text = await navigator.clipboard.readText();
+                const result = parseShareText(text);
+                
+                if (result && result.gameId === lastLaunchedGame) {
+                    // Clipboard has the right game - auto-record it
+                    if (logGame(result, 'unrecorded-prompt')) {
+                        const game = GAMES[result.gameId];
+                        showToast(`${game?.icon || '🎮'} ${game?.name} recorded!`, 'success');
+                        renderAll();
+                        clearActiveGame();
+                        
+                        // Now launch the target game
+                        if (pendingUnrecordedTargetGame) {
+                            setTimeout(() => playGame(pendingUnrecordedTargetGame, false, true), 500);
+                        }
+                        pendingUnrecordedTargetGame = null;
+                        return;
+                    }
+                }
+                
+                // No matching result in clipboard - open log sheet for manual entry
+                openLogSheetForGame(lastLaunchedGame);
+                pendingUnrecordedTargetGame = null;
+                
+            } catch (e) {
+                console.log('Clipboard read failed, opening manual log:', e.message);
+                // Clipboard read failed - open log sheet for manual entry
+                openLogSheetForGame(lastLaunchedGame);
+                pendingUnrecordedTargetGame = null;
+            }
+        }
+        
+        function handleUnrecordedSkip() {
+            closeGenericSheet();
+            const targetGame = pendingUnrecordedTargetGame;
+            clearActiveGame();
+            pendingUnrecordedTargetGame = null;
+            
+            if (targetGame) {
+                playGame(targetGame, false, true);
+            }
         }
         
         function openLogSheetForGame(gameId) {
@@ -21842,6 +22532,16 @@ Hint levels:
                 return;
             }
             
+            // ===== Check token balance =====
+            const HINT_COST = 5;
+            const tokens = appData.wallet?.tokens || 0;
+            
+            if (tokens < HINT_COST) {
+                showInsufficientTokensSheet(tokens, HINT_COST);
+                return;
+            }
+            // ===== End token check =====
+            
             const game = hintCurrentGame;
             const userInput = document.getElementById('hint-input').value.trim();
             
@@ -21935,6 +22635,13 @@ Hint levels:
                     
                     // Success! Clear loading and show result
                     clearInterval(loadingInterval);
+                    
+                    // ===== Deduct tokens on success =====
+                    const HINT_COST = 5;
+                    appData.wallet.tokens = (appData.wallet?.tokens || 0) - HINT_COST;
+                    saveData();
+                    renderWallet();
+                    // ===== End token deduction =====
                     
                     hintLevel = level;
                     updateHintLevel(level);
@@ -24353,63 +25060,36 @@ Hint levels:
             
             let lines = [];
             
-            // Header with game count
-            const gameCount = gameIds.length;
-            lines.push(`🧩 Daily Puzzle Recap • ${gameCount} game${gameCount !== 1 ? 's' : ''}`);
+            // Header with date
+            const today = new Date();
+            const dateStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            lines.push(`🧩 My Puzzle Results • ${dateStr}`);
             lines.push('');
             
-            // List games with scores
-            let totalPoints = 0;
-            let perfectCount = 0;
+            // Show each game with its grid (the actual pasted results)
             for (const gameId of gameIds) {
                 const game = GAMES[gameId];
                 const entry = todayHistory[gameId];
                 if (game) {
-                    const score = entry.score || '✓';
-                    lines.push(`${game.icon} ${game.name}: ${score}`);
-                    totalPoints += entry.numericScore || 0;
+                    // Game header with score
+                    lines.push(`${game.icon} ${game.name} ${entry.score}`);
                     
-                    // Check for perfects
-                    if (score.includes('1/') || score.includes('Perfect') || score.includes('🎯')) {
-                        perfectCount++;
+                    // Include the grid if we have it
+                    if (entry.grid) {
+                        lines.push(entry.grid);
                     }
+                    lines.push('');
                 }
             }
             
-            lines.push('');
-            
-            // Cross-game insights
-            let insights = [];
-            
-            // Perfect count
-            if (perfectCount > 0) {
-                insights.push(`⭐ ${perfectCount} perfect${perfectCount !== 1 ? 's' : ''}`);
-            }
-            
-            // Total points
-            if (totalPoints > 0) {
-                insights.push(`💎 ${totalPoints} pts`);
-            }
-            
-            // Friend comparison
-            const friendComparison = getFriendComparisonStats(gameIds);
-            if (friendComparison.total > 0 && friendComparison.beat > 0) {
-                insights.push(`👑 Beat ${friendComparison.beat}/${friendComparison.total} friend${friendComparison.total !== 1 ? 's' : ''}`);
-            }
-            
-            if (insights.length > 0) {
-                lines.push(insights.join(' • '));
-                lines.push('');
-            }
-            
-            // Best streak across all games
+            // Current streak if notable
             const maxStreak = getMaxStreak(appData);
             if (maxStreak > 1) {
-                lines.push(`🔥 Best streak: ${maxStreak} days`);
+                lines.push(`🔥 ${maxStreak}-day streak`);
                 lines.push('');
             }
             
-            lines.push('via Game Shelf 🧩');
+            lines.push('Track your puzzles: gameshelf.app 🧩');
             
             return lines.join('\n');
         }
@@ -27952,6 +28632,9 @@ Hint levels:
             // Check for friend/profile link in URL
             checkFriendParam();
             
+            // Check for purchase result in URL
+            checkPurchaseResult();
+            
             // Handle hash-based deep links (#log, #settings, #achievements, etc.)
             handleDeepLinks();
             
@@ -27960,11 +28643,7 @@ Hint levels:
                 if (document.visibilityState === 'visible') {
                     console.log('📱 App became visible');
                     
-                    // Use new clipboard diff detection
-                    // This compares clipboard now vs when we left
-                    setTimeout(checkClipboardOnReturn, 500);
-                    
-                    // Then check if user returned from a game (for non-clipboard flows)
+                    // Check if user returned from a game (for prompting on next game click)
                     setTimeout(checkReturnFromGame, 1500);
                     
                     // Check if we need to verify a first-time launch worked
@@ -28045,7 +28724,7 @@ Hint levels:
                 }
             }, 1000);
             
-            console.log('🧩 Game Shelf PWA v1.2.48 initialized - Test helpers enabled');
+            console.log('🧩 Game Shelf PWA v1.2.61 initialized - Test helpers enabled');
             console.log('Setup complete:', isSetupComplete());
             console.log('Standalone:', isStandalone(), 'iOS:', isIOS());
         }
