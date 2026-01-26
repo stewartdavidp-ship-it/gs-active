@@ -1,7 +1,7 @@
 # Game Shelf Ecosystem - Active Development Context
 
-**Archive Date:** January 25, 2026  
-**Archive Version:** gs-active-2026-01-25
+**Archive Date:** January 26, 2026  
+**Archive Version:** gs-active-2026-01-26
 
 ---
 
@@ -9,11 +9,37 @@
 
 | App | Version | Key Features |
 |-----|---------|--------------|
-| Game Shelf | 1.2.37 | Fixed SW cache, empty shelf safeguard |
+| Game Shelf | 1.2.48 | Deep link fixes, tutorial update |
 | Quotle | 1.2.2 | 390 quotes, PWA path fixes, presidential quotes |
 | Rungs | 1.0.12 | Fixed rung movement direction |
-| Slate | (unchanged) | Previous version |
-| Word Boxing | (unchanged) | Previous version |
+| Slate | 1.0.12 | Word puzzle game |
+| Word Boxing | 1.0.7 | Multiplayer word battle |
+| Command Center | 7.2.5 | Deployment management |
+| Test Plan | 4.0.1 | Added version meta tag |
+| Landing Page | 1.1.0 | Marketing page |
+
+---
+
+## Game Shelf v1.2.47 - Battle Scoring Rebalance
+
+Comprehensive scoring rebalance across all games:
+
+**Core NYT Games:**
+- Wordle: 1/6=50 (hole-in-one!), 2/6=30, 3/6=22, 4/6=15, 5/6=10, 6/6=6
+- Connections: 0 mistakes=30, 1=24, 2=18, 3=12 (gradual penalty)
+- Strands: 0 hints=28, 1=25, 2=22, 3=19 (softer penalty)
+- Mini: <45s=28, smoother decay to floor of 12
+
+**6-Guess Games (Worldle, Tradle, Framed, etc.):**
+- 1/6=35, 2/6=28, 3/6=22, 4/6=16, 5/6=10, 6/6=6
+
+**LinkedIn Games:**
+- Queens/Tango/Crossclimb/Zip: Smoother time curves
+- Pinpoint: 1 guess=35, 2=28, 3=22, 4=16, 5=10
+
+**GS Originals:**
+- Quotle: 1/4=50 (hole-in-one!), 2/4=30, 3/4=20, 4/4=12
+- Rungs: Perfect=35, 2 attempts=28, 3=21, 4=14
 
 ---
 
