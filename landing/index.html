@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="version" content="1.1.0">
+    
+    <title>Game Shelf - Track Every Daily Puzzle in One Place</title>
+    <meta name="description" content="Wordle. Connections. Spelling Bee. Track 36+ daily puzzle games, build streaks, battle friends, and get AI-powered hints. Free PWA - no app store needed.">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://gameshelf.app/">
+    <meta property="og:title" content="Game Shelf - Track Every Daily Puzzle">
+    <meta property="og:description" content="Finally, one place for all your daily puzzles. Track streaks, battle friends, get AI hints when you're stuck.">
+    <meta property="og:image" content="https://stewartdavidp-ship-it.github.io/game-shelf-landing/og-image.png">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://gameshelf.app/">
+    <meta name="twitter:title" content="Game Shelf - Track Every Daily Puzzle">
+    <meta name="twitter:description" content="Finally, one place for all your daily puzzles. Track streaks, battle friends, get AI hints when you're stuck.">
+    <meta name="twitter:image" content="https://stewartdavidp-ship-it.github.io/game-shelf-landing/og-image.png">
+    
+    <!-- Theme -->
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a25;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --text-muted: #606070;
+            --accent-purple: #667eea;
+            --accent-pink: #f093fb;
+            --accent-green: #48bb78;
+            --accent-orange: #ed8936;
+            --accent-gold: #ffd700;
+            --accent-gradient: linear-gradient(135deg, #667eea, #764ba2);
+            --glow: 0 0 60px rgba(102, 126, 234, 0.3);
+        }
+        
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 50% 50%, rgba(102, 126, 234, 0.15) 0%, transparent 50%);
+            animation: pulse 8s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            max-width: 1100px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+            text-align: left;
+        }
+        
+        .hero-text {
+            max-width: 500px;
+        }
+        
+        .brand-title {
+            font-size: clamp(2.5rem, 8vw, 4rem);
+            font-weight: 900;
+            letter-spacing: 0.02em;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 16px;
+        }
+        
+        .hero-headline {
+            font-size: clamp(1.5rem, 4vw, 2rem);
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+        
+        .hero-headline span {
+            color: var(--accent-purple);
+        }
+        
+        /* Phone Mockup */
+        .hero-phone {
+            display: flex;
+            justify-content: center;
+        }
+        
+        .phone-frame {
+            width: 280px;
+            background: linear-gradient(145deg, #2a2a3a 0%, #1a1a25 100%);
+            border-radius: 40px;
+            padding: 10px;
+            box-shadow: 
+                0 50px 100px rgba(0,0,0,0.5),
+                0 0 0 1px rgba(255,255,255,0.1),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+            animation: float 4s ease-in-out infinite;
+        }
+        
+        .phone-screenshot {
+            width: 100%;
+            border-radius: 32px;
+            display: block;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+        
+        @media (max-width: 900px) {
+            .hero-content {
+                grid-template-columns: 1fr;
+                text-align: center;
+                gap: 40px;
+            }
+            
+            .hero-text {
+                max-width: 100%;
+                order: 1;
+            }
+            
+            .hero-phone {
+                order: 0;
+            }
+            
+            .phone-frame {
+                width: 220px;
+            }
+        }
+        
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+        
+        .game-list {
+            font-size: 0.95rem;
+            color: var(--accent-purple);
+            margin-bottom: 32px;
+            font-weight: 500;
+        }
+        
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 18px 40px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            background: var(--accent-gradient);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: var(--glow), 0 4px 20px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--glow), 0 8px 30px rgba(102, 126, 234, 0.5);
+        }
+        
+        .cta-note {
+            margin-top: 16px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        .scroll-hint {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: bounce 2s infinite;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(8px); }
+        }
+        
+        /* Stats Bar */
+        .stats-bar {
+            padding: 50px 24px;
+            background: var(--bg-secondary);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        .stat-item {
+            padding: 16px;
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+        
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        @media (max-width: 640px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        /* AI Hints Section - NEW FEATURED */
+        .ai-hints {
+            padding: 80px 24px;
+            max-width: 1000px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        .ai-hints-card {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 24px;
+            padding: 48px 32px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .ai-hints-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23667eea' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            pointer-events: none;
+        }
+        
+        .new-badge {
+            display: inline-block;
+            background: var(--accent-gradient);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .ai-hints h2 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 16px;
+        }
+        
+        .ai-hints h2 .gradient {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .ai-hints p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto 24px;
+            line-height: 1.7;
+        }
+        
+        .hint-levels {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 24px;
+        }
+        
+        .hint-level {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 12px 20px;
+            border-radius: 12px;
+            text-align: left;
+            min-width: 160px;
+        }
+        
+        .hint-level-name {
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .hint-level-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        
+        /* AI Hints Layout */
+        .ai-hints-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: center;
+        }
+        
+        .ai-hints-text {
+            text-align: left;
+        }
+        
+        .hint-level.active {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: var(--accent-purple);
+        }
+        
+        /* Hint Phone Mockup */
+        .hint-phone {
+            display: flex;
+            justify-content: center;
+        }
+        
+        .hint-phone-frame {
+            width: 260px;
+            background: linear-gradient(145deg, #2a2a3a 0%, #1a1a25 100%);
+            border-radius: 32px;
+            padding: 10px;
+            box-shadow: 
+                0 30px 60px rgba(0,0,0,0.4),
+                0 0 0 1px rgba(255,255,255,0.1);
+        }
+        
+        /* Hint Phone Mockup */
+        .hint-phone {
+            display: flex;
+            justify-content: center;
+        }
+        
+        .hint-phone-frame {
+            width: 260px;
+            background: linear-gradient(145deg, #2a2a3a 0%, #1a1a25 100%);
+            border-radius: 36px;
+            padding: 10px;
+            box-shadow: 
+                0 30px 60px rgba(0,0,0,0.4),
+                0 0 0 1px rgba(255,255,255,0.1);
+        }
+        
+        .hint-phone-frame .phone-screenshot {
+            width: 100%;
+            border-radius: 28px;
+            display: block;
+        }
+        
+        @media (max-width: 900px) {
+            .ai-hints-content {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+            
+            .ai-hints-text {
+                text-align: center;
+            }
+            
+            .hint-levels {
+                justify-content: center;
+            }
+            
+            .hint-phone-frame {
+                width: 220px;
+            }
+        }
+        
+        /* Features Section */
+        .features {
+            padding: 80px 24px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .section-title {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 48px;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+        
+        @media (min-width: 640px) {
+            .feature-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (min-width: 900px) {
+            .feature-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        .feature-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 28px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(102, 126, 234, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 16px;
+        }
+        
+        .feature-card h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        
+        /* Social Proof */
+        .social-proof {
+            padding: 60px 24px;
+            text-align: center;
+            background: var(--bg-secondary);
+        }
+        
+        .quote {
+            font-size: 1.5rem;
+            font-weight: 600;
+            font-style: italic;
+            max-width: 600px;
+            margin: 0 auto 16px;
+            color: var(--text-primary);
+        }
+        
+        .quote-author {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+        
+        /* Games Section */
+        .games-section {
+            padding: 80px 24px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .games-categories {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+        
+        .game-category {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .category-icon {
+            font-size: 1.5rem;
+        }
+        
+        .category-header h3 {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+        
+        .category-header span {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+        
+        .games-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .game-tag {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 14px;
+            border-radius: 100px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.05);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        
+        .game-tag:hover {
+            background: rgba(102, 126, 234, 0.15);
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+        
+        .game-tag.popular {
+            background: rgba(102, 126, 234, 0.15);
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+        
+        .game-tag .icon {
+            font-size: 1rem;
+        }
+        
+        /* Originals Section */
+        .originals {
+            padding: 80px 24px;
+            background: var(--bg-secondary);
+        }
+        
+        .originals-inner {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .originals .section-title {
+            margin-bottom: 16px;
+        }
+        
+        .originals-subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            font-size: 1rem;
+        }
+        
+        .originals-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        
+        @media (min-width: 768px) {
+            .originals-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        
+        .original-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 24px 16px;
+            text-align: center;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s;
+        }
+        
+        .original-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(102, 126, 234, 0.3);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        
+        .original-icon {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+            display: block;
+        }
+        
+        .original-card h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        
+        .original-card p {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+        
+        /* How It Works */
+        .how-it-works {
+            padding: 80px 24px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .steps {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            background: var(--bg-card);
+            padding: 24px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .step-number {
+            width: 48px;
+            height: 48px;
+            background: var(--accent-gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+        
+        .step-content h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        
+        .step-content p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+        
+        /* Final CTA */
+        .final-cta {
+            padding: 80px 24px;
+            text-align: center;
+            background: var(--bg-secondary);
+        }
+        
+        .final-cta h2 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+        
+        .final-cta > p {
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            font-size: 1.1rem;
+        }
+        
+        .share-section {
+            margin-top: 24px;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .share-btn {
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-primary);
+            padding: 12px 20px;
+            border-radius: 100px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        
+        .share-btn:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.2);
+        }
+        
+        /* Footer */
+        footer {
+            padding: 40px 24px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        footer a {
+            color: var(--accent-purple);
+            text-decoration: none;
+        }
+        
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Aurora Gradient Background -->
+    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; overflow: hidden; pointer-events: none;">
+        <div style="
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(102, 126, 234, 0.66) 0%, transparent 40%),
+                radial-gradient(ellipse at 80% 20%, rgba(240, 147, 251, 0.55) 0%, transparent 40%),
+                radial-gradient(ellipse at 40% 80%, rgba(118, 75, 162, 0.66) 0%, transparent 40%),
+                radial-gradient(ellipse at 80% 80%, rgba(102, 126, 234, 0.5) 0%, transparent 40%);
+            animation: aurora 12s ease-in-out infinite;
+        "></div>
+    </div>
+    <style>
+        @keyframes aurora {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(5%, 5%) rotate(2deg); }
+            50% { transform: translate(-3%, 6%) rotate(-2deg); }
+            75% { transform: translate(6%, -4%) rotate(3deg); }
+        }
+    </style>
+    
+    <!-- SVG Definitions -->
+    <svg style="position: absolute; width: 0; height: 0;">
+        <defs>
+            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#667eea"/>
+                <stop offset="100%" style="stop-color:#764ba2"/>
+            </linearGradient>
+        </defs>
+    </svg>
+    
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-text">
+                <h1 class="brand-title">GAME SHELF</h1>
+                <h2 class="hero-headline">Track Every Daily Puzzle <span>in One Place</span></h2>
+                <p class="hero-subtitle">Finally, one app for all your daily puzzles.</p>
+                <p class="game-list">NYT • LinkedIn • Indie Games • GS Originals • 36+ games</p>
+                
+                <a href="https://stewartdavidp-ship-it.github.io/gameshelf/" class="cta-button">
+                    Try Game Shelf Free
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </a>
+                <p class="cta-note">No download needed • Works on any device</p>
+            </div>
+            
+            <div class="hero-phone">
+                <div class="phone-frame">
+                    <img src="games-screen.png" alt="Game Shelf app showing games" class="phone-screenshot">
+                </div>
+            </div>
+        </div>
+        
+        <div class="scroll-hint">
+            ↓ See what's inside
+        </div>
+    </section>
+    
+    <!-- Stats Bar -->
+    <section class="stats-bar">
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-number">36+</div>
+                <div class="stat-label">Supported Games</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">4</div>
+                <div class="stat-label">Original Games</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">∞</div>
+                <div class="stat-label">Streaks to Build</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">AI</div>
+                <div class="stat-label">Powered Hints</div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- AI Hints Section - FEATURED -->
+    <section class="ai-hints">
+        <div class="ai-hints-card">
+            <div class="ai-hints-content">
+                <div class="ai-hints-text">
+                    <span class="new-badge">🤖 Featured</span>
+                    <h2>Stuck? Get <span class="gradient">AI-Powered Hints</span></h2>
+                    <p>Powered by Claude AI, get intelligent hints that help without spoiling. Start with a gentle nudge, or ask for more help — you control how much assistance you get.</p>
+                    
+                    <div class="hint-levels">
+                        <div class="hint-level">
+                            <div class="hint-level-name">💡 Nudge</div>
+                            <div class="hint-level-desc">A gentle push</div>
+                        </div>
+                        <div class="hint-level active">
+                            <div class="hint-level-name">🔍 Hint</div>
+                            <div class="hint-level-desc">More specific</div>
+                        </div>
+                        <div class="hint-level">
+                            <div class="hint-level-name">🎯 Strong</div>
+                            <div class="hint-level-desc">Almost there</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="hint-phone">
+                    <div class="hint-phone-frame">
+                        <img src="hint-screen.png" alt="AI hints for Connections" class="phone-screenshot">
+                    </div>
+                </div>
+            </div>
+            
+            <p style="margin-top: 32px; font-size: 0.9rem; color: var(--text-muted); text-align: center;">
+                Works with Wordle, Connections, Strands, Mini, and more
+            </p>
+        </div>
+    </section>
+    
+    <!-- Features -->
+    <section class="features">
+        <h2 class="section-title">Why You'll Love It</h2>
+        
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>Track Everything</h3>
+                <p>All your puzzles, all your stats, all your streaks — finally in one place.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">⚔️</div>
+                <h3>Battle Friends</h3>
+                <p>Challenge anyone to head-to-head battles with balanced scoring across all games.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🔥</div>
+                <h3>Never Lose a Streak</h3>
+                <p>Cloud sync keeps your history safe. Switch phones? No problem.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🎯</div>
+                <h3>Smart Detection</h3>
+                <p>Paste your results and we auto-detect the game. It just works.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">📡</div>
+                <h3>Share Hub</h3>
+                <p>Consolidate all your game announcements in one place. One tap to share across all your favorite platforms.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">👀</div>
+                <h3>Follow Puzzlers</h3>
+                <p>Discover and follow other players talking about the same games. See what the community is buzzing about.</p>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Games -->
+    <section class="games-section">
+        <h2 class="section-title">36+ Games Supported</h2>
+        
+        <div class="games-categories">
+            <div class="game-category">
+                <div class="category-header">
+                    <span class="category-icon">📰</span>
+                    <h3>NYT Games</h3>
+                    <span>• 6 games</span>
+                </div>
+                <div class="games-grid">
+                    <span class="game-tag popular"><span class="icon">🟩</span> Wordle</span>
+                    <span class="game-tag popular"><span class="icon">🔗</span> Connections</span>
+                    <span class="game-tag"><span class="icon">🧵</span> Strands</span>
+                    <span class="game-tag"><span class="icon">📝</span> Mini</span>
+                    <span class="game-tag popular"><span class="icon">🐝</span> Spelling Bee</span>
+                    <span class="game-tag"><span class="icon">📦</span> Letterboxed</span>
+                </div>
+            </div>
+            
+            <div class="game-category">
+                <div class="category-header">
+                    <span class="category-icon">💼</span>
+                    <h3>LinkedIn Games</h3>
+                    <span>• 5 games</span>
+                </div>
+                <div class="games-grid">
+                    <span class="game-tag"><span class="icon">👑</span> Queens</span>
+                    <span class="game-tag"><span class="icon">💃</span> Tango</span>
+                    <span class="game-tag"><span class="icon">📍</span> Pinpoint</span>
+                    <span class="game-tag"><span class="icon">🧗</span> Crossclimb</span>
+                    <span class="game-tag"><span class="icon">⚡</span> Zip</span>
+                </div>
+            </div>
+            
+            <div class="game-category">
+                <div class="category-header">
+                    <span class="category-icon">🔤</span>
+                    <h3>Word Games</h3>
+                    <span>• 8 games</span>
+                </div>
+                <div class="games-grid">
+                    <span class="game-tag"><span class="icon">4️⃣</span> Quordle</span>
+                    <span class="game-tag"><span class="icon">8️⃣</span> Octordle</span>
+                    <span class="game-tag"><span class="icon">2️⃣</span> Dordle</span>
+                    <span class="game-tag"><span class="icon">🧇</span> Waffle</span>
+                    <span class="game-tag"><span class="icon">🧮</span> Nerdle</span>
+                    <span class="game-tag"><span class="icon">🎯</span> Contexto</span>
+                    <span class="game-tag"><span class="icon">🧠</span> Semantle</span>
+                    <span class="game-tag"><span class="icon">█</span> Redactle</span>
+                </div>
+            </div>
+            
+            <div class="game-category">
+                <div class="category-header">
+                    <span class="category-icon">🌍</span>
+                    <h3>Geography</h3>
+                    <span>• 6 games</span>
+                </div>
+                <div class="games-grid">
+                    <span class="game-tag"><span class="icon">🌍</span> Worldle</span>
+                    <span class="game-tag"><span class="icon">🌎</span> Globle</span>
+                    <span class="game-tag"><span class="icon">🚢</span> Tradle</span>
+                    <span class="game-tag"><span class="icon">✈️</span> Travle</span>
+                    <span class="game-tag"><span class="icon">📸</span> WhereTaken</span>
+                    <span class="game-tag"><span class="icon">🍕</span> FoodGuessr</span>
+                </div>
+            </div>
+            
+            <div class="game-category">
+                <div class="category-header">
+                    <span class="category-icon">🎬</span>
+                    <h3>Entertainment</h3>
+                    <span>• 5 games</span>
+                </div>
+                <div class="games-grid">
+                    <span class="game-tag"><span class="icon">🎬</span> Framed</span>
+                    <span class="game-tag"><span class="icon">🎭</span> Actorle</span>
+                    <span class="game-tag"><span class="icon">🎥</span> Moviedle</span>
+                    <span class="game-tag"><span class="icon">🎵</span> Heardle</span>
+                    <span class="game-tag"><span class="icon">🎸</span> Bandle</span>
+                </div>
+            </div>
+            
+            <div class="game-category">
+                <div class="category-header">
+                    <span class="category-icon">⚾</span>
+                    <h3>Sports & Misc</h3>
+                    <span>• 2 games</span>
+                </div>
+                <div class="games-grid">
+                    <span class="game-tag"><span class="icon">⚾</span> Immaculate Grid</span>
+                    <span class="game-tag"><span class="icon">🛒</span> Costcodle</span>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Originals -->
+    <section class="originals">
+        <div class="originals-inner">
+            <h2 class="section-title">🎮 Game Shelf Originals</h2>
+            <p class="originals-subtitle">Exclusive games you won't find anywhere else</p>
+            
+            <div class="originals-grid">
+                <a href="https://stewartdavidp-ship-it.github.io/Quotle/" class="original-card">
+                    <span class="original-icon">💬</span>
+                    <h3>Quotle</h3>
+                    <p>Guess the famous quote one word at a time</p>
+                </a>
+                <a href="https://stewartdavidp-ship-it.github.io/Slate/" class="original-card">
+                    <span class="original-icon">🪨</span>
+                    <h3>Slate</h3>
+                    <p>Find 8 hidden words in the chalkboard grid</p>
+                </a>
+                <a href="https://stewartdavidp-ship-it.github.io/Rungs/" class="original-card">
+                    <span class="original-icon">🪜</span>
+                    <h3>Rungs</h3>
+                    <p>Climb the word ladder one letter at a time</p>
+                </a>
+                <a href="https://stewartdavidp-ship-it.github.io/WordBoxing/" class="original-card">
+                    <span class="original-icon">🥊</span>
+                    <h3>Word Boxing</h3>
+                    <p>Real-time multiplayer word battles</p>
+                </a>
+            </div>
+        </div>
+    </section>
+    
+    <!-- How It Works -->
+    <section class="how-it-works">
+        <h2 class="section-title">Get Started in Seconds</h2>
+        
+        <div class="steps">
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h3>Open Game Shelf</h3>
+                    <p>No app store, no download. Just tap and go — works on any device.</p>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h3>Log Your Games</h3>
+                    <p>Paste your share text or tap to log. We auto-detect the game and score.</p>
+                </div>
+            </div>
+            
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h3>Watch Your Stats Grow</h3>
+                    <p>Track streaks, view history, battle friends, and unlock achievements.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Final CTA -->
+    <section class="final-cta">
+        <h2>Ready to Track Smarter?</h2>
+        <p>Join thousands of puzzle lovers who track every game in one place.</p>
+        
+        <a href="https://stewartdavidp-ship-it.github.io/gameshelf/" class="cta-button">
+            <svg viewBox="0 0 100 100" style="width: 2.5em; height: 2.5em; vertical-align: middle; margin-right: 0.4em;">
+                <g transform="rotate(-12, 35, 50)">
+                    <rect x="15" y="28" width="28" height="36" rx="4" fill="white"/>
+                    <circle cx="43" cy="46" r="6" fill="white"/>
+                </g>
+                <g transform="rotate(12, 65, 50)">
+                    <rect x="57" y="28" width="28" height="36" rx="4" fill="rgba(255,255,255,0.85)"/>
+                    <circle cx="57" cy="46" r="6" fill="white"/>
+                </g>
+            </svg>
+            Try Game Shelf Free
+        </a>
+        
+        <div class="share-section">
+            <a href="sms:?body=Check out Game Shelf - track all your daily puzzles in one place! https://stewartdavidp-ship-it.github.io/gameshelf/" class="share-btn">
+                💬 Text a Friend
+            </a>
+            <button class="share-btn" onclick="copyLink()">
+                📋 Copy Link
+            </button>
+        </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer>
+        <p>Made with 🧩 for puzzle lovers everywhere</p>
+        <p style="margin-top: 8px;">
+            Questions? <a href="mailto:feedback@gameshelf.app">feedback@gameshelf.app</a>
+        </p>
+        <p style="margin-top: 12px; font-size: 0.8rem;">
+            © 2025 Game Shelf • v1.1.0
+        </p>
+    </footer>
+    
+    <script>
+        function copyLink() {
+            navigator.clipboard.writeText('https://stewartdavidp-ship-it.github.io/gameshelf/');
+            const btn = event.target;
+            const original = btn.innerHTML;
+            btn.innerHTML = '✓ Copied!';
+            setTimeout(() => btn.innerHTML = original, 2000);
+        }
+        
+        // Track scroll for analytics (placeholder)
+        let maxScroll = 0;
+        window.addEventListener('scroll', () => {
+            const scrollPercent = Math.round((window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100);
+            if (scrollPercent > maxScroll) {
+                maxScroll = scrollPercent;
+            }
+        });
+    </script>
+</body>
+</html>
