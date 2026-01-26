@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Game Shelf Command Center</title>
-    <meta name="version" content="7.2.0">
+    <meta name="version" content="7.2.5">
     <meta name="gs-app-id" content="management">
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -27,7 +27,7 @@
     <div id="root"><div style="display:flex;align-items:center;justify-content:center;min-height:100vh;"><div style="text-align:center;"><div style="margin-bottom:20px;"><svg viewBox="0 0 100 100" width="64" height="64" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gsLoadGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#667eea"/><stop offset="100%" style="stop-color:#764ba2"/></linearGradient></defs><rect x="5" y="5" width="90" height="90" rx="20" fill="url(#gsLoadGrad)"/><g transform="rotate(-12, 35, 50)"><rect x="15" y="28" width="28" height="36" rx="4" fill="white"/><circle cx="43" cy="46" r="6" fill="white"/><text x="29" y="54" font-family="Arial" font-size="20" font-weight="bold" fill="#667eea" text-anchor="middle">G</text></g><g transform="rotate(12, 65, 50)"><rect x="57" y="28" width="28" height="36" rx="4" fill="rgba(255,255,255,0.9)"/><circle cx="57" cy="46" r="6" fill="url(#gsLoadGrad)"/><text x="71" y="54" font-family="Arial" font-size="20" font-weight="bold" fill="#764ba2" text-anchor="middle">S</text></g></svg></div>Loading...</div></div></div>
 
     <script type="text/babel">
-    console.log('Command Center v7.2.0 starting...');
+    console.log('Command Center v7.2.5 starting...');
     
     // =========================================================================
     // FIREBASE CONFIG
@@ -397,6 +397,19 @@
                 beta: ['edutrackbeta', 'edutrack-beta']
             },
             detectionPatterns: ['<title>edutrack', 'edutrack-data', 'ET-[A-Z]{2}-\\d{3}', 'student-codes']
+        },
+        landing: {
+            id: 'landing', name: 'Landing Page', icon: '🚀',
+            targetPath: 'index.html', swPath: '', hasServiceWorker: false,
+            repos: { dev: '', test: '', prod: '', beta: '' },
+            versions: { dev: '', test: '', prod: '', beta: '' },
+            repoPatterns: {
+                dev: ['game-shelf-landing-dev'],
+                test: ['game-shelf-landing-test'],
+                prod: ['game-shelf-landing'],
+                beta: ['game-shelf-landing-beta']
+            },
+            detectionPatterns: ['<title>game\\s*shelf.*track', 'game-shelf-landing', 'track.*every.*daily.*puzzle']
         }
     };
     
@@ -925,6 +938,52 @@
             } catch { return null; }
         }
         
+        // Get file content - handles large files (>1MB) that GitHub API doesn't return content for
+        async getFileContent(repo, path) {
+            try {
+                const file = await this.getFile(repo, path);
+                if (!file) return null;
+                
+                // For large files (>1MB), GitHub API doesn't return content - use download_url
+                if (!file.content && file.download_url) {
+                    console.log(`Large file detected (${path}), using download_url`);
+                    const response = await fetch(file.download_url);
+                    const content = await response.text();
+                    return { ...file, content: null, textContent: content };
+                }
+                
+                // Normal file - decode base64 content
+                const textContent = this.decodeContent(file.content);
+                return { ...file, textContent };
+            } catch (e) {
+                console.warn(`Failed to get file content for ${path}:`, e);
+                return null;
+            }
+        }
+        
+        // Get file content at specific commit - handles large files
+        async getFileContentAtCommit(repo, path, commitSha) {
+            try {
+                const file = await this.getFileAtCommit(repo, path, commitSha);
+                if (!file) return null;
+                
+                // For large files, use raw URL with commit ref
+                if (!file.content && file.download_url) {
+                    console.log(`Large file detected at commit (${path}), using download_url`);
+                    const response = await fetch(file.download_url);
+                    const content = await response.text();
+                    return { ...file, content: null, textContent: content };
+                }
+                
+                // Normal file - decode base64 content
+                const textContent = this.decodeContent(file.content);
+                return { ...file, textContent };
+            } catch (e) {
+                console.warn(`Failed to get file content at commit for ${path}:`, e);
+                return null;
+            }
+        }
+        
         async getFileAtCommit(repo, path, commitSha) {
             try {
                 const [owner, repoName] = repo.split('/');
@@ -1293,11 +1352,11 @@
             if (!github) return null;
             
             try {
-                const currentFile = await github.getFile(repo, targetPath);
-                if (!currentFile) return null;
+                const fileData = await github.getFileContent(repo, targetPath);
+                if (!fileData) return null;
                 
-                // Proper UTF-8 decode from base64
-                const content = decodeURIComponent(escape(atob(currentFile.content)));
+                // Use textContent which handles both normal and large files
+                const content = fileData.textContent;
                 const version = extractVersionFromHTML(content);
                 
                 const key = `${appId}:${target}`;
@@ -1307,7 +1366,7 @@
                     savedAt: new Date().toISOString(),
                     repo,
                     targetPath,
-                    sha: currentFile.sha
+                    sha: fileData.sha
                 };
                 
                 setRollbackSnapshots(prev => ({ ...prev, [key]: snapshot }));
@@ -1357,9 +1416,9 @@
             
             try {
                 addStep('Preparing rollback', 'running');
-                const currentFile = await github.getFile(snapshot.repo, snapshot.targetPath);
-                // Proper UTF-8 decode from base64
-                const currentVersion = currentFile ? extractVersionFromHTML(decodeURIComponent(escape(atob(currentFile.content)))) : null;
+                const currentFileData = await github.getFileContent(snapshot.repo, snapshot.targetPath);
+                // Use textContent which handles both normal and large files
+                const currentVersion = currentFileData ? extractVersionFromHTML(currentFileData.textContent) : null;
                 deployment.previousVersion = currentVersion;
                 addStep('Preparing rollback', 'complete', `${formatVersion(currentVersion)} → ${formatVersion(snapshot.version)}`);
                 
@@ -1367,7 +1426,7 @@
                 const result = await github.createOrUpdateFile(
                     snapshot.repo, snapshot.targetPath, snapshot.content,
                     `Quick rollback ${app.name} to v${snapshot.version} (was v${currentVersion})`,
-                    currentFile?.sha
+                    currentFileData?.sha
                 );
                 deployment.commitSha = result.commit.sha;
                 addStep('Restoring snapshot', 'complete', result.commit.sha.substring(0, 7));
@@ -1598,13 +1657,13 @@
                 if (app.testRepo) {
                     try {
                         console.log(`[${appId}] Fetching TEST from ${app.testRepo}/${app.targetPath}...`);
-                        const testFile = await github.getFile(app.testRepo, app.targetPath);
-                        if (testFile) {
-                            // Proper UTF-8 decode from base64
-                            const content = decodeURIComponent(escape(atob(testFile.content)));
+                        const testFileData = await github.getFileContent(app.testRepo, app.targetPath);
+                        if (testFileData) {
+                            // Use textContent which handles both normal and large files
+                            const content = testFileData.textContent;
                             const version = extractVersionFromHTML(content);
                             console.log(`[${appId}] TEST version from REPO: ${version || 'NO VERSION'}`);
-                            console.log(`[${appId}] TEST file SHA: ${testFile.sha}`);
+                            console.log(`[${appId}] TEST file SHA: ${testFileData.sha}`);
                             if (version) updates[appId] = { ...updates[appId], currentTestVersion: version };
                         } else {
                             console.log(`[${appId}] TEST: FILE NOT FOUND`);
@@ -1616,13 +1675,13 @@
                 if (app.prodRepo) {
                     try {
                         console.log(`[${appId}] Fetching PROD from ${app.prodRepo}/${app.targetPath}...`);
-                        const prodFile = await github.getFile(app.prodRepo, app.targetPath);
-                        if (prodFile) {
-                            // Proper UTF-8 decode from base64
-                            const content = decodeURIComponent(escape(atob(prodFile.content)));
+                        const prodFileData = await github.getFileContent(app.prodRepo, app.targetPath);
+                        if (prodFileData) {
+                            // Use textContent which handles both normal and large files
+                            const content = prodFileData.textContent;
                             const version = extractVersionFromHTML(content);
                             console.log(`[${appId}] PROD version from REPO: ${version || 'NO VERSION'}`);
-                            console.log(`[${appId}] PROD file SHA: ${prodFile.sha}`);
+                            console.log(`[${appId}] PROD file SHA: ${prodFileData.sha}`);
                             if (version) updates[appId] = { ...updates[appId], currentProdVersion: version };
                         } else {
                             console.log(`[${appId}] PROD: FILE NOT FOUND`);
@@ -1873,11 +1932,10 @@
         // Get current deployed version from repo
         const fetchCurrentVersion = async (repo, targetPath) => {
             if (!github || !repo) return null;
-            const file = await github.getFile(repo, targetPath);
-            if (!file) return null;
-            // Proper UTF-8 decode from base64
-            const content = decodeURIComponent(escape(atob(file.content)));
-            return extractVersionFromHTML(content);
+            const fileData = await github.getFileContent(repo, targetPath);
+            if (!fileData) return null;
+            // Use textContent which handles both normal and large files
+            return extractVersionFromHTML(fileData.textContent);
         };
         
         // Deploy single file (legacy support)
@@ -2152,10 +2210,10 @@
                 
                 // Always verify index.html (not binary files like PNGs)
                 try {
-                    const verifyFile = await github.getFile(repo, 'index.html');
-                    if (verifyFile) {
-                        // Proper UTF-8 decode from base64
-                        const verifyContent = decodeURIComponent(escape(atob(verifyFile.content)));
+                    const verifyFileData = await github.getFileContent(repo, 'index.html');
+                    if (verifyFileData) {
+                        // Use textContent which handles both normal and large files
+                        const verifyContent = verifyFileData.textContent;
                         const verifyVersion = extractVersionFromHTML(verifyContent);
                         console.log('Verification - version in repo after deploy:', verifyVersion);
                         console.log('Verification - expected version:', newVersion);
@@ -2354,8 +2412,8 @@
                 addStep('Fetching from TEST', 'complete', `${filesToCommit.length} files, ${formatVersion(testVersion)}`);
                 
                 addStep('Checking PROD', 'running');
-                const prodFile = await github.getFile(app.prodRepo, app.targetPath);
-                const prodVersion = prodFile ? extractVersionFromHTML(decodeURIComponent(escape(atob(prodFile.content)))) : null;
+                const prodFileData = await github.getFileContent(app.prodRepo, app.targetPath);
+                const prodVersion = prodFileData ? extractVersionFromHTML(prodFileData.textContent) : null;
                 deployment.previousVersion = prodVersion;
                 addStep('Checking PROD', 'complete', prodVersion ? formatVersion(prodVersion) : 'Empty');
                 
@@ -2457,17 +2515,17 @@
             
             try {
                 addStep('Getting current state', 'running');
-                const currentFile = await github.getFile(repo, app.targetPath);
-                // Proper UTF-8 decode from base64
-                const currentVersion = currentFile ? extractVersionFromHTML(decodeURIComponent(escape(atob(currentFile.content)))) : null;
+                const currentFileData = await github.getFileContent(repo, app.targetPath);
+                // Use textContent which handles both normal and large files
+                const currentVersion = currentFileData ? extractVersionFromHTML(currentFileData.textContent) : null;
                 deployment.previousVersion = currentVersion;
                 addStep('Getting current state', 'complete', formatVersion(currentVersion));
                 
                 addStep('Fetching rollback version', 'running');
-                const rollbackFile = await github.getFileAtCommit(repo, app.targetPath, deploymentToRollbackTo.commitSha);
-                if (!rollbackFile) throw new Error('Cannot find file at that commit');
-                // Proper UTF-8 decode from base64
-                const content = decodeURIComponent(escape(atob(rollbackFile.content)));
+                const rollbackFileData = await github.getFileContentAtCommit(repo, app.targetPath, deploymentToRollbackTo.commitSha);
+                if (!rollbackFileData) throw new Error('Cannot find file at that commit');
+                // Use textContent which handles both normal and large files
+                const content = rollbackFileData.textContent;
                 deployment.fileContent = content;
                 addStep('Fetching rollback version', 'complete', formatVersion(targetVersion));
                 
@@ -2475,7 +2533,7 @@
                 const result = await github.createOrUpdateFile(
                     repo, app.targetPath, content,
                     `Rollback ${app.name} to ${formatVersion(targetVersion)} (was ${formatVersion(currentVersion)})`,
-                    currentFile?.sha
+                    currentFileData?.sha
                 );
                 deployment.commitSha = result.commit.sha;
                 addStep('Rolling back', 'complete', result.commit.sha.substring(0, 7));
@@ -2514,7 +2572,7 @@
                             <Icons.GameShelfLogo size={32} />
                             <div>
                                 <h1 className="text-lg font-bold">Command Center</h1>
-                                <div className="text-xs text-slate-400">v7.2.0 • Download package excludes backup files</div>
+                                <div className="text-xs text-slate-400">v7.2.5 • Comprehensive large file (>1MB) handling for all GitHub API operations</div>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -3918,34 +3976,48 @@
             try {
                 // Get app info for naming
                 const app = configuredApps.find(a => a.testRepo === selectedRepo || a.prodRepo === selectedRepo);
-                const isTest = app?.testRepo === selectedRepo;
+                const repoName = selectedRepo.split('/')[1];
                 
-                // Files/patterns to EXCLUDE from deploy packages (backup/rollback files)
-                const excludePatterns = [
-                    /^old\d*\.html$/i,           // old1.html, old2.html, etc.
-                    /^old\d*\.index\.html$/i,    // old1.index.html, etc.
-                    /^backup/i,                   // backup* files
-                    /^\.git/,                     // .git files
-                    /^\.DS_Store$/,               // macOS files
-                    /^Thumbs\.db$/,               // Windows files
+                // WHITELIST: Only include files that belong in deploy packages
+                // Based on gs-active skill deploy structure
+                const deployFiles = [
+                    'index.html',
+                    'sw.js',
+                    'manifest.json',
+                    'RELEASE_NOTES.txt'  // Optional but include if present
                 ];
                 
-                const shouldExclude = (filename) => {
-                    return excludePatterns.some(pattern => pattern.test(filename));
+                // Valid icon files for deploy packages
+                const validIcons = [
+                    'icon-72.png', 'icon-96.png', 'icon-128.png', 'icon-144.png',
+                    'icon-152.png', 'icon-192.png', 'icon-384.png', 'icon-512.png',
+                    'icon-maskable-192.png', 'icon-maskable-512.png',
+                    'icon-source.svg', 'apple-touch-icon.png'
+                ];
+                
+                // Check if a file should be included in deploy package
+                const shouldInclude = (path) => {
+                    const filename = path.split('/').pop();
+                    // Root level deploy files
+                    if (deployFiles.includes(filename) && !path.includes('/')) return true;
+                    // Icons folder files
+                    if (path.startsWith('icons/') && validIcons.includes(filename)) return true;
+                    return false;
                 };
                 
-                // Recursively fetch all files from repo
+                // Fetch repo contents
                 const fetchAllFiles = async (path = '') => {
                     const contents = await github.listRepoContents(selectedRepo, path);
                     let files = [];
                     
                     for (const item of contents) {
                         if (item.type === 'file') {
-                            // Filter out backup/old files
-                            if (!shouldExclude(item.name)) {
+                            // Only include whitelisted deploy files
+                            if (shouldInclude(item.path)) {
                                 files.push(item);
                             }
-                        } else if (item.type === 'dir') {
+                        } else if (item.type === 'dir' && item.name === 'icons') {
+                            // Only recurse into icons folder
                             const subFiles = await fetchAllFiles(item.path);
                             files = files.concat(subFiles);
                         }
@@ -3960,33 +4032,39 @@
                 const indexFile = allFiles.find(f => f.name === 'index.html');
                 if (indexFile) {
                     try {
-                        const indexContent = await github.getFile(selectedRepo, 'index.html');
-                        if (indexContent) {
-                            const content = decodeURIComponent(escape(atob(indexContent.content)));
-                            version = extractVersionFromHTML(content) || 'unknown';
-                        }
+                        // For large files (>1MB), GitHub API doesn't return content
+                        // Use download_url instead which always works
+                        const response = await fetch(indexFile.download_url);
+                        const content = await response.text();
+                        version = extractVersionFromHTML(content) || 'unknown';
                     } catch (e) {
                         console.warn('Could not extract version:', e);
                     }
                 }
                 
-                // Create zip
+                // Determine folder name for zip structure: {app}-latest/
+                // Strip 'test' suffix if present to get base app name
+                let appName = repoName.replace(/test$/i, '');
+                const folderName = `${appName}-latest`;
+                
+                // Create zip with proper structure: {app}-latest/{files}
                 const zip = new JSZip();
+                const folder = zip.folder(folderName);
                 
                 for (const file of allFiles) {
                     try {
                         const response = await fetch(file.download_url);
                         const blob = await response.blob();
-                        zip.file(file.path, blob);
+                        // Add to folder with same relative path
+                        folder.file(file.path, blob);
                     } catch (e) {
                         console.warn(`Failed to fetch ${file.path}:`, e);
                     }
                 }
                 
                 // Generate zip and download
-                const repoName = selectedRepo.split('/')[1];
                 const versionStr = version.replace(/\./g, '_');
-                const filename = `${repoName}-deploy-v${versionStr}.zip`;
+                const filename = `${appName}-deploy-v${versionStr}.zip`;
                 
                 const content = await zip.generateAsync({ type: 'blob' });
                 const url = URL.createObjectURL(content);
@@ -3999,6 +4077,12 @@
                 URL.revokeObjectURL(url);
                 
                 setDownloadingPackage(false);
+                
+                // Show what was included
+                const includedFiles = allFiles.map(f => f.path).join(', ');
+                console.log(`Deploy package created: ${filename}`);
+                console.log(`Included files: ${includedFiles}`);
+                
             } catch (err) {
                 console.error('Deploy package download failed:', err);
                 showAlert('Deploy package download failed: ' + err.message, 'Download Error');
@@ -4011,10 +4095,10 @@
             setVersionAudit({ loading: true });
             
             try {
-                const file = await github.getFile(selectedRepo, 'index.html');
-                if (file) {
-                    // Proper UTF-8 decode from base64
-                    const content = decodeURIComponent(escape(atob(file.content)));
+                const fileData = await github.getFileContent(selectedRepo, 'index.html');
+                if (fileData) {
+                    // Use textContent which handles both normal and large files
+                    const content = fileData.textContent;
                     const versions = findAllVersionStrings(content);
                     const primary = extractVersionFromHTML(content);
                     
@@ -7156,20 +7240,18 @@ const pushIssueToCommandCenter = async (testResult) => {
                 
                 if (app.testRepo) {
                     try {
-                        const file = await github.getFile(app.testRepo, 'index.html');
-                        if (file) {
-                            const content = decodeURIComponent(escape(atob(file.content.replace(/[\r\n\s]/g, ''))));
-                            versions[appId].test = extractVersionFromHTML(content);
+                        const fileData = await github.getFileContent(app.testRepo, 'index.html');
+                        if (fileData) {
+                            versions[appId].test = extractVersionFromHTML(fileData.textContent);
                         }
                     } catch (e) { console.log(`Could not fetch ${appId} test version`); }
                 }
                 
                 if (app.prodRepo) {
                     try {
-                        const file = await github.getFile(app.prodRepo, 'index.html');
-                        if (file) {
-                            const content = decodeURIComponent(escape(atob(file.content.replace(/[\r\n\s]/g, ''))));
-                            versions[appId].prod = extractVersionFromHTML(content);
+                        const fileData = await github.getFileContent(app.prodRepo, 'index.html');
+                        if (fileData) {
+                            versions[appId].prod = extractVersionFromHTML(fileData.textContent);
                         }
                     } catch (e) { console.log(`Could not fetch ${appId} prod version`); }
                 }
@@ -7502,13 +7584,29 @@ const pushIssueToCommandCenter = async (testResult) => {
                             // Determine if binary or text
                             const isBinary = file.path.match(/\.(png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot|svg)$/i);
                             
-                            if (isBinary) {
-                                // Binary files - content is already base64
-                                gsActive.file(file.path, fileData.content.replace(/[\r\n\s]/g, ''), { base64: true });
+                            // Check if content is available (GitHub Contents API has 1MB limit)
+                            // For files >1MB, content will be empty but download_url is provided
+                            if (!fileData.content && fileData.download_url) {
+                                console.log(`Large file detected (>1MB): ${file.path}, using download_url`);
+                                const response = await fetch(fileData.download_url);
+                                if (isBinary) {
+                                    const blob = await response.blob();
+                                    gsActive.file(file.path, blob);
+                                } else {
+                                    const text = await response.text();
+                                    gsActive.file(file.path, text);
+                                }
+                            } else if (fileData.content) {
+                                if (isBinary) {
+                                    // Binary files - content is already base64
+                                    gsActive.file(file.path, fileData.content.replace(/[\r\n\s]/g, ''), { base64: true });
+                                } else {
+                                    // Text files - decode from base64
+                                    const content = decodeURIComponent(escape(atob(fileData.content.replace(/[\r\n\s]/g, ''))));
+                                    gsActive.file(file.path, content);
+                                }
                             } else {
-                                // Text files - decode from base64
-                                const content = decodeURIComponent(escape(atob(fileData.content.replace(/[\r\n\s]/g, ''))));
-                                gsActive.file(file.path, content);
+                                console.warn(`No content or download_url for ${file.path}`);
                             }
                         }
                     } catch (e) {
@@ -7550,7 +7648,7 @@ const pushIssueToCommandCenter = async (testResult) => {
                 const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
                 
                 let briefing = `# Claude Session Briefing - ${dayOfWeek}, ${today}\n\n`;
-                briefing += `Generated by Command Center v7.2.0\n\n`;
+                briefing += `Generated by Command Center v7.2.5\n\n`;
                 briefing += `---\n\n`;
                 
                 // Deployed Versions
