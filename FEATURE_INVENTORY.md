@@ -2,7 +2,7 @@
 
 **Generated:** January 26, 2026  
 **Based on:** gs-active-2026-01-26 archive  
-**Game Shelf Version:** 1.2.47
+**Game Shelf Version:** 1.2.49
 
 ---
 
