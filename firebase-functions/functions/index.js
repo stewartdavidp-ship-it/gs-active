@@ -577,3 +577,221 @@ async function triggerReferralPurchaseReward(userId) {
         console.error('Error triggering referral purchase reward:', error);
     }
 }
+
+// ============ GOODY GIFT INTEGRATION ============
+
+// Goody gift tiers (1 coin = $1)
+const GOODY_GIFT_TIERS = [
+    { coins: 15, value: 15, name: '$15 Gift' },
+    { coins: 30, value: 30, name: '$30 Gift' },
+    { coins: 60, value: 60, name: '$60 Gift' },
+    { coins: 120, value: 120, name: '$120 Gift' }
+];
+
+// Get available gift options
+exports.getGiftOptions = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    
+    const userId = context.auth.uid;
+    
+    // Get user's coin balance
+    const walletRef = await db.ref(`users/${userId}/shelf/wallet`).once('value');
+    const wallet = walletRef.val() || { coins: 0 };
+    const userCoins = wallet.coins || 0;
+    
+    // Return tiers with availability
+    const options = GOODY_GIFT_TIERS.map(tier => ({
+        ...tier,
+        available: userCoins >= tier.coins
+    }));
+    
+    return {
+        userCoins,
+        options
+    };
+});
+
+// Redeem coins for a Goody gift
+exports.redeemGift = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    
+    const userId = context.auth.uid;
+    const { tierCoins, recipientEmail } = data;
+    
+    // Validate tier
+    const tier = GOODY_GIFT_TIERS.find(t => t.coins === tierCoins);
+    if (!tier) {
+        throw new functions.https.HttpsError('invalid-argument', 'Invalid gift tier');
+    }
+    
+    // Validate email
+    if (!recipientEmail || !recipientEmail.includes('@')) {
+        throw new functions.https.HttpsError('invalid-argument', 'Valid email required');
+    }
+    
+    // Check Goody API is configured
+    if (!process.env.GOODY_API_KEY) {
+        throw new functions.https.HttpsError(
+            'failed-precondition',
+            'Gift redemption is not yet available'
+        );
+    }
+    
+    // Check user has enough coins
+    const walletRef = db.ref(`users/${userId}/shelf/wallet`);
+    const walletSnap = await walletRef.once('value');
+    const wallet = walletSnap.val() || { coins: 0 };
+    
+    if ((wallet.coins || 0) < tier.coins) {
+        throw new functions.https.HttpsError(
+            'failed-precondition',
+            `Need ${tier.coins} coins, you have ${wallet.coins || 0}`
+        );
+    }
+    
+    // Check for recent redemptions (rate limit: 1 per day)
+    const dayAgo = Date.now() - (24 * 60 * 60 * 1000);
+    const recentRef = await db.ref(`giftRedemptions/${userId}`)
+        .orderByChild('timestamp')
+        .startAt(dayAgo)
+        .once('value');
+    
+    if (recentRef.numChildren() > 0) {
+        throw new functions.https.HttpsError(
+            'resource-exhausted',
+            'You can only redeem one gift per day'
+        );
+    }
+    
+    try {
+        // Call Goody API to create gift order
+        const axios = require('axios');
+        const goodyResponse = await axios.post(
+            'https://api.ongoody.com/v1/orders',
+            {
+                recipient_email: recipientEmail,
+                amount_cents: tier.value * 100,
+                message: `Enjoy your Game Shelf reward! 🎮🧩`,
+                sender_name: 'Game Shelf'
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${process.env.GOODY_API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+        
+        const goodyOrderId = goodyResponse.data.id;
+        
+        // Deduct coins
+        await walletRef.update({
+            coins: (wallet.coins || 0) - tier.coins
+        });
+        
+        // Log redemption
+        const redemptionRef = await db.ref(`giftRedemptions/${userId}`).push({
+            tierCoins: tier.coins,
+            tierValue: tier.value,
+            recipientEmail: recipientEmail,
+            goodyOrderId: goodyOrderId,
+            status: 'sent',
+            timestamp: admin.database.ServerValue.TIMESTAMP
+        });
+        
+        console.log(`Gift redeemed: user=${userId}, tier=${tier.coins}, order=${goodyOrderId}`);
+        
+        return {
+            success: true,
+            redemptionId: redemptionRef.key,
+            goodyOrderId: goodyOrderId,
+            message: `${tier.name} gift sent to ${recipientEmail}!`
+        };
+        
+    } catch (error) {
+        console.error('Goody API error:', error.response?.data || error.message);
+        
+        // Check for specific Goody errors
+        if (error.response?.status === 401) {
+            throw new functions.https.HttpsError('internal', 'Gift service authentication failed');
+        }
+        if (error.response?.status === 400) {
+            throw new functions.https.HttpsError('invalid-argument', 'Invalid gift request');
+        }
+        
+        throw new functions.https.HttpsError('internal', 'Gift service temporarily unavailable');
+    }
+});
+
+// Get user's gift redemption history
+exports.getGiftHistory = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    
+    const userId = context.auth.uid;
+    
+    const historyRef = await db.ref(`giftRedemptions/${userId}`)
+        .orderByChild('timestamp')
+        .limitToLast(20)
+        .once('value');
+    
+    const history = [];
+    historyRef.forEach(snap => {
+        history.push({
+            id: snap.key,
+            ...snap.val()
+        });
+    });
+    
+    // Return in reverse chronological order
+    return history.reverse();
+});
+
+/**
+ * Reset Purchase History
+ * Only works if user's wallet has been reset (tokens <= 50, coins = 0)
+ * This allows re-testing the purchase flow after a data reset
+ */
+exports.resetPurchaseHistory = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    
+    const userId = context.auth.uid;
+    
+    // Check wallet state - only allow reset if wallet is at or below default
+    const walletRef = db.ref(`users/${userId}/shelf/wallet`);
+    const walletSnap = await walletRef.once('value');
+    const wallet = walletSnap.val() || { tokens: 0, coins: 0 };
+    
+    // Only allow if tokens <= 50 (default signup bonus) AND coins = 0
+    if (wallet.tokens > 50 || wallet.coins > 0) {
+        throw new functions.https.HttpsError(
+            'failed-precondition',
+            'Purchase history can only be reset when wallet is at default state (≤50 tokens, 0 coins). Reset your data first.'
+        );
+    }
+    
+    // Delete purchase history
+    const purchasesRef = db.ref(`purchases/${userId}`);
+    const purchasesSnap = await purchasesRef.once('value');
+    const purchaseCount = purchasesSnap.numChildren();
+    
+    if (purchaseCount === 0) {
+        return { success: true, message: 'No purchase history to reset' };
+    }
+    
+    await purchasesRef.remove();
+    
+    console.log(`[RESET] Cleared ${purchaseCount} purchase records for user ${userId}`);
+    
+    return { 
+        success: true, 
+        message: `Cleared ${purchaseCount} purchase record(s). You can now test purchases again.`
+    };
+});
