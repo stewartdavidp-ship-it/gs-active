@@ -1,8 +1,8 @@
 # Game Shelf Ecosystem - Feature Inventory
 
-**Generated:** January 26, 2026  
-**Based on:** gs-active-2026-01-26 archive  
-**Game Shelf Version:** 1.2.49
+**Generated:** January 27, 2026  
+**Based on:** gs-active-2026-01-27 archive  
+**Game Shelf Version:** 1.2.61
 
 ---
 
@@ -181,8 +181,8 @@
 
 | Tool | Version | Status | Notes |
 |------|---------|--------|-------|
-| Command Center | 7.2.5 | ✅ Complete | Deployment management |
-| Test Plan | (no meta) | ⚠️ Partial | Missing version tag, incomplete assertions |
+| Command Center | 7.3.0 | ✅ Complete | Consolidated repo support, subPath, custom domains |
+| Test Plan | 4.0.1 | ⚠️ Partial | Missing version tag, incomplete assertions |
 | Landing Page | 1.1.0 | ✅ Complete | Marketing page |
 
 ---
