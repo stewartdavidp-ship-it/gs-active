@@ -1,3 +1,94 @@
+Quotle v1.2.5
+=============
+Release Date: January 28, 2026
+
+UX IMPROVEMENTS
+---------------
+- Added mute reminder when testing sounds
+  - Shows "No sound? Check if your device is muted" after test
+  - Browsers cannot detect hardware mute state
+
+---
+
+Quotle v1.2.4
+=============
+Release Date: January 28, 2026
+
+UI/UX FIXES
+-----------
+- Fixed menu button hard to tap on mobile
+  - Increased z-index on menu-bar from 10 to 100
+  - Added touch-action: manipulation to prevent tap delays
+  
+- Fixed modal X close button hard to tap
+  - Changed from sticky+float positioning to absolute positioning
+  - Increased button size from 36px to 40px
+  - Added touch-action: manipulation
+
+- Moved back button to left side of header (was grouped with menu)
+  - Now properly positioned as separate element
+  - Fixed positioning on mobile (uses safe-area-inset)
+
+---
+
+Quotle v1.2.3
+=============
+Release Date: January 28, 2026
+
+BUG FIXES
+---------
+- Fixed state persistence when returning after completing a puzzle
+  - checkFirstTimePlayer() now checks for existing todayResult first
+  - Prevents tutorial from showing when user has already played today
+  - showAlreadyPlayed() now handles missing result gracefully
+  - Shows generic "Already Played" message if detailed result unavailable
+
+UI IMPROVEMENTS
+---------------
+- Added "← Game Shelf" back button in menu bar
+  - Allows easy navigation back to Game Shelf portal
+  - On narrow screens, shows just "←" arrow
+
+---
+
+Quotle v1.2.2
+=============
+Release Date: January 27, 2026
+
+PWA PATH FIXES
+--------------
+- Fixed 404 errors when running as installed PWA
+- Changed all absolute paths to relative paths
+- sw.js: '/' → './', '/index.html' → './index.html'
+- manifest.json: start_url and scope to "./"
+- index.html: SW register '/sw.js' → './sw.js'
+
+---
+
+Quotle v1.2.1
+=============
+Release Date: January 27, 2026
+
+PRESIDENTIAL QUOTES
+-------------------
+- Added 17 presidential/government quotes
+- Total quotes now: 390
+
+---
+
+Quotle v1.2.0
+=============
+Release Date: January 26, 2026
+
+QUOTE CLEANUP & REORGANIZATION
+------------------------------
+- Removed 3 anonymous/proverb quotes
+- Added 11 modern public domain quotes
+- Reordered quotes for better opening experience
+- Reset launch date: 2026-01-26
+
+---
+
 Quotle v1.1.1
 =============
 Release Date: January 25, 2026
