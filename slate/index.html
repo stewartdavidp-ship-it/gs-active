@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="version" content="1.0.14">
+    <meta name="version" content="1.0.16">
     <title>Slate - Daily Word Challenge</title>
     
     <!-- PWA Support -->
@@ -2203,7 +2203,7 @@
             <!-- 7. GAME INFO -->
             <h3>ℹ️ Game Info</h3>
             <p><strong>Puzzle:</strong> <span id="puzzle-date">Daily</span></p>
-            <p><strong>Version:</strong> v1.0.14</p>
+            <p><strong>Version:</strong> v1.0.16</p>
             <p style="font-size: 0.85rem; color: #a8b896; margin-top: 8px;">A daily word puzzle game. New words every day at midnight!</p>
             
             <!-- 8. DATA -->
@@ -2308,10 +2308,10 @@
     </div>
 
     <script>
-        // ============ GAME SHELF INTEGRATION MODULE v1.0.14 ============
+        // ============ GAME SHELF INTEGRATION MODULE v1.0.16 ============
         (function() {
             'use strict';
-            const GAMESHELF_VERSION = '1.0.14';
+            const GAMESHELF_VERSION = '1.0.16';
             if (window.GameShelfIntegration) return;
             
             window.GameShelfIntegration = {
@@ -2327,7 +2327,7 @@
                         name: config.name || gameId,
                         icon: config.icon || '🎮',
                         url: config.url || window.location.hostname,
-                        version: config.version || '1.0.14',
+                        version: config.version || '1.0.16',
                         type: config.type || 'daily',
                         ...config
                     };
@@ -3946,6 +3946,9 @@
                 }
                 
                 setTimeout(() => {
+                    // v1.0.16: Don't clear if game ended (letters already filled by checkPointLimit)
+                    if (gameOver) return;
+                    
                     for (let i = 0; i < 5; i++) {
                         const cell = document.querySelector(`[data-row="${rowIndex}"][data-col="${i}"]`);
                         cell.style.background = '';
@@ -4591,7 +4594,7 @@ slate.game`;
             name: 'Slate',
             icon: '🪨',
             url: 'slate.game',
-            version: '1.0.14',
+            version: '1.0.16',
             type: 'daily'
         });
 
@@ -4631,35 +4634,6 @@ slate.game`;
             });
         }
         
-        // PWA Install Prompt
-        let deferredInstallPrompt = null;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredInstallPrompt = e;
-            if (!window.matchMedia('(display-mode: standalone)').matches && !sessionStorage.getItem('slate_install_prompted')) {
-                const banner = document.createElement('div');
-                banner.id = 'pwa-install-banner';
-                banner.innerHTML = `
-                    <div style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#2a4a3a,#1a3a2a);color:#e8e6e3;padding:12px 20px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:12px;z-index:9999;font-family:'Roboto Mono',monospace;max-width:90%;border:2px solid #6d5d45;">
-                        <span style="font-size:1.5rem;">📝</span>
-                        <div style="flex:1;"><div style="font-weight:600;">Install Slate</div><div style="font-size:0.85rem;opacity:0.9;">Add to home screen</div></div>
-                        <button onclick="installPWA()" style="background:#e8e6e3;color:#1a3a2a;border:none;padding:8px 16px;border-radius:8px;font-weight:600;cursor:pointer;">Install</button>
-                        <button onclick="dismissInstallBanner()" style="background:transparent;border:none;color:#e8e6e3;font-size:1.2rem;cursor:pointer;padding:4px;opacity:0.7;">✕</button>
-                    </div>`;
-                document.body.appendChild(banner);
-            }
-        });
-        function installPWA() {
-            if (deferredInstallPrompt) {
-                deferredInstallPrompt.prompt();
-                deferredInstallPrompt.userChoice.then(() => { deferredInstallPrompt = null; dismissInstallBanner(); });
-            }
-        }
-        function dismissInstallBanner() {
-            const banner = document.getElementById('pwa-install-banner');
-            if (banner) banner.remove();
-            sessionStorage.setItem('slate_install_prompted', 'true');
-        }
     </script>
 </body>
 </html>
