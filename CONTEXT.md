@@ -812,3 +812,75 @@ hint-analytics/
 
 ### Deployment
 Upload index.js to Command Center → GitHub Actions auto-deploys to Firebase Functions.
+
+---
+
+## Session: January 28, 2026 (Late Evening) - User Type System
+
+### Problem
+Need to distinguish between different user types to control app routing:
+- Beta testers → Beta Hub portal
+- Standard users → Main Game Shelf app
+- New users → Registration flow
+
+Previous implementation had client-side writing of `userType` which is a security concern.
+
+### Solution: Server-Side User Type Management
+
+**New Firebase Functions:**
+
+| Function | Purpose |
+|----------|---------|
+| `completeBetaRegistration` | Server-side beta registration with coin awards |
+| `getUserType` | Get user's current type for routing |
+| `setUserType` | Placeholder for future admin functionality |
+
+**User Types:**
+```javascript
+const USER_TYPES = {
+    PENDING: 'pending',   // Authenticated but hasn't completed beta registration
+    BETA: 'beta',         // Completed beta registration
+    STANDARD: 'standard'  // Regular user (future use)
+};
+```
+
+**Firebase Structure (New Field):**
+```
+users/{odometerId}/
+  userType: 'pending' | 'beta' | 'standard'
+  ... existing fields ...
+```
+
+**Security Model:**
+- `userType` can only be written by Cloud Functions
+- Client reads `userType` for routing decisions (read is OK)
+- Coin awards use transactions to prevent manipulation
+- Legacy beta users (have `earlyAccess.joinedAt` but no `userType`) are auto-migrated
+
+### Beta Hub v2.1.3
+
+Updated to use server-side registration:
+
+**Flow Changes:**
+1. User signs in → client reads `userType` (or infers from `earlyAccess`)
+2. If `beta` → Welcome modal → Dashboard
+3. If `standard` → Redirect to main Game Shelf
+4. If `pending` (or new) → Show registration view
+5. User clicks "Complete Registration" → calls `completeBetaRegistration` function
+6. Function awards coins, sets `userType: 'beta'` → Dashboard
+
+**New Registration View:**
+- Shows user's avatar and name
+- Explains beta perks
+- "Complete Beta Registration" button
+- Calls Cloud Function (not direct writes)
+
+### Files Updated
+- `beta/index.html` - v2.1.3 (server-side registration)
+- `firebase-functions/functions/index.js` - Added 3 new functions
+- `CONTEXT.md` - This documentation
+
+### Migration Strategy
+- Existing users with `earlyAccess.joinedAt` → treated as `beta` (auto-migrated on next action)
+- New users → `pending` until they complete registration
+- No batch migration script needed - happens on-demand
