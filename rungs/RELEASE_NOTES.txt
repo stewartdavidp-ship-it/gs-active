@@ -1,3 +1,15 @@
+Rungs v1.0.15
+=============
+Release Date: January 28, 2026
+
+PWA CHANGES
+-----------
+- Removed PWA install banner prompt
+  - PWA infrastructure retained for offline/caching
+  - Users can still install via browser menu if desired
+
+---
+
 Rungs v1.0.14
 =============
 Release Date: January 28, 2026
