@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="version" content="2.0.0">
+    <meta name="gs-app-id" content="beta">
+    
+    <title>Game Shelf Beta Hub</title>
+    <meta name="description" content="Join the Game Shelf beta program. Track 36+ daily puzzle games, build streaks, battle friends, and get AI-powered hints.">
+    
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://gameshelf.co/beta/">
+    <meta property="og:title" content="Game Shelf - Track Every Daily Puzzle">
+    <meta property="og:description" content="Finally, one place for all your daily puzzles. Track streaks, battle friends, get AI hints when you're stuck.">
+    <meta property="og:image" content="https://gameshelf.co/landing/og-image.png">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Game Shelf - Track Every Daily Puzzle">
+    <meta name="twitter:image" content="https://gameshelf.co/landing/og-image.png">
+    
+    <!-- Theme -->
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a25;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --text-muted: #606070;
+            --accent-purple: #667eea;
+            --accent-pink: #f093fb;
+            --accent-green: #48bb78;
+            --accent-orange: #ed8936;
+            --accent-gold: #ffd700;
+            --accent-gradient: linear-gradient(135deg, #667eea, #764ba2);
+            --glow: 0 0 60px rgba(102, 126, 234, 0.3);
+            --border: #2a2a3a;
+        }
+        
+        html { scroll-behavior: smooth; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        .hidden { display: none !important; }
+        
+        /* ==================== LANDING VIEW STYLES ==================== */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle at 50% 50%, rgba(102, 126, 234, 0.15) 0%, transparent 50%);
+            animation: pulse 8s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        .hero-content { position: relative; z-index: 1; max-width: 800px; }
+        
+        .brand-title {
+            font-size: clamp(3rem, 10vw, 5rem);
+            font-weight: 900;
+            letter-spacing: 0.02em;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 16px;
+        }
+        
+        .hero-headline {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 16px;
+        }
+        
+        .hero-headline span {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        
+        .game-list {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+        }
+        
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 18px 40px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            background: var(--accent-gradient);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: var(--glow), 0 4px 20px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--glow), 0 8px 30px rgba(102, 126, 234, 0.5);
+        }
+        
+        .cta-note {
+            margin-top: 16px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        .hero-phone {
+            margin-top: 40px;
+            position: relative;
+        }
+        
+        .phone-frame {
+            width: 280px;
+            height: 500px;
+            background: linear-gradient(145deg, #1a1a25, #12121a);
+            border-radius: 40px;
+            padding: 12px;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.5), inset 0 0 0 2px rgba(255,255,255,0.1);
+            margin: 0 auto;
+        }
+        
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            background: var(--bg-primary);
+            border-radius: 30px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .scroll-hint {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: bounce 2s infinite;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(10px); }
+        }
+        
+        /* Stats Bar */
+        .stats-bar {
+            background: var(--bg-secondary);
+            padding: 40px 24px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .landing-view .stats-grid {
+            display: flex;
+            justify-content: center;
+            gap: 48px;
+            max-width: 800px;
+            margin: 0 auto;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item { text-align: center; }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        /* AI Hints Section */
+        .ai-hints {
+            padding: 80px 24px;
+            background: var(--bg-primary);
+        }
+        
+        .ai-hints-card {
+            max-width: 900px;
+            margin: 0 auto;
+            background: linear-gradient(145deg, rgba(102, 126, 234, 0.1), rgba(240, 147, 251, 0.05));
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 24px;
+            padding: 48px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .ai-hints-content { position: relative; z-index: 1; }
+        
+        .new-badge {
+            display: inline-block;
+            background: var(--accent-gradient);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+        
+        .ai-hints h2 {
+            font-size: 2rem;
+            margin-bottom: 16px;
+        }
+        
+        .gradient {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .ai-hints p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            max-width: 500px;
+            margin-bottom: 24px;
+        }
+        
+        .hint-levels {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .hint-level {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 12px 20px;
+            text-align: center;
+        }
+        
+        .hint-level.active {
+            background: var(--accent-gradient);
+            border-color: transparent;
+        }
+        
+        .hint-level-name { font-weight: 600; font-size: 0.95rem; }
+        .hint-level-desc { font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; }
+        .hint-level.active .hint-level-desc { color: rgba(255,255,255,0.8); }
+        
+        /* Features Section */
+        .features {
+            padding: 80px 24px;
+            background: var(--bg-secondary);
+        }
+        
+        .section-header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+        
+        .section-header h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+        
+        .section-header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .feature-card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 32px;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(102, 126, 234, 0.3);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        
+        .feature-icon {
+            width: 56px;
+            height: 56px;
+            background: var(--accent-gradient);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+        
+        .feature-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 12px;
+        }
+        
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+        
+        /* Games Section */
+        .games-section {
+            padding: 80px 24px;
+            background: var(--bg-primary);
+        }
+        
+        .games-showcase {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .game-category {
+            margin-bottom: 48px;
+        }
+        
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .category-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--accent-gradient);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .category-header h3 { font-size: 1.3rem; }
+        
+        .games-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        
+        .game-pill {
+            background: var(--bg-card);
+            border: 1px solid var(--bg-card);
+            border-radius: 25px;
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        
+        .game-pill:hover {
+            border-color: var(--accent-purple);
+            background: rgba(102, 126, 234, 0.1);
+        }
+        
+        .game-count {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+        
+        /* Originals Section */
+        .originals {
+            padding: 80px 24px;
+            background: var(--bg-secondary);
+        }
+        
+        .originals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .original-card {
+            background: linear-gradient(145deg, var(--bg-card), var(--bg-primary));
+            border-radius: 20px;
+            padding: 28px;
+            text-align: center;
+            transition: all 0.3s;
+            border: 1px solid rgba(255,255,255,0.05);
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        
+        .original-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-purple);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.2);
+        }
+        
+        .original-icon { font-size: 3rem; margin-bottom: 16px; }
+        .original-card h4 { font-size: 1.2rem; margin-bottom: 8px; }
+        .original-card p { font-size: 0.85rem; color: var(--text-secondary); }
+        
+        /* How It Works */
+        .how-it-works {
+            padding: 80px 24px;
+            background: var(--bg-primary);
+        }
+        
+        .steps {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            flex-wrap: wrap;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .step {
+            text-align: center;
+            max-width: 250px;
+        }
+        
+        .step-number {
+            width: 48px;
+            height: 48px;
+            background: var(--accent-gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0 auto 16px;
+        }
+        
+        .step h4 { font-size: 1.1rem; margin-bottom: 8px; }
+        .step p { color: var(--text-secondary); font-size: 0.9rem; }
+        
+        /* Final CTA */
+        .final-cta {
+            padding: 100px 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .final-cta::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 100%, rgba(102, 126, 234, 0.2) 0%, transparent 60%);
+        }
+        
+        .final-cta > * { position: relative; z-index: 1; }
+        
+        .final-cta h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 16px;
+        }
+        
+        .final-cta p {
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            margin-bottom: 32px;
+        }
+        
+        .share-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+        
+        .share-btn {
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-primary);
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        
+        .share-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+            border-color: var(--accent-purple);
+        }
+        
+        /* Footer */
+        footer {
+            padding: 40px 24px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        footer a { color: var(--accent-purple); text-decoration: none; }
+        
+        @keyframes aurora {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(5%, 5%) rotate(2deg); }
+            50% { transform: translate(-3%, 6%) rotate(-2deg); }
+            75% { transform: translate(6%, -4%) rotate(3deg); }
+        }
+        
+        /* ==================== SIGNUP VIEW STYLES ==================== */
+        .signup-view {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 40px 24px;
+            min-height: 100vh;
+        }
+        
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            margin-bottom: 24px;
+            cursor: pointer;
+        }
+        
+        .back-link:hover { color: var(--text-primary); }
+        
+        .signup-header { text-align: center; margin-bottom: 32px; }
+        .signup-logo { width: 80px; height: 80px; margin-bottom: 16px; }
+        
+        .beta-badge {
+            display: inline-block;
+            background: var(--accent-gradient);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+        
+        .signup-title {
+            font-size: 2rem;
+            font-weight: 800;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        
+        .signup-subtitle { font-size: 1rem; color: var(--text-secondary); }
+        
+        .referral-banner {
+            background: linear-gradient(135deg, rgba(72, 187, 120, 0.15), rgba(102, 126, 234, 0.1));
+            border: 1px solid rgba(72, 187, 120, 0.3);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        
+        .referral-icon { font-size: 2.5rem; margin-bottom: 8px; }
+        .referral-text { font-size: 1.1rem; font-weight: 600; }
+        .referral-subtext { font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px; }
+        .referral-bonus { display: inline-flex; align-items: center; gap: 6px; background: rgba(255, 215, 0, 0.2); padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; color: var(--accent-gold); margin-top: 12px; }
+        
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+        
+        .card-highlight {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.05));
+            border-color: rgba(102, 126, 234, 0.2);
+        }
+        
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-title .emoji { font-size: 1.2rem; }
+        
+        .benefit-list { list-style: none; }
+        .benefit-list li { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; color: var(--text-secondary); font-size: 0.95rem; }
+        .benefit-list .check { color: var(--accent-green); font-weight: bold; flex-shrink: 0; }
+        
+        .coin-highlight {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(237, 137, 54, 0.1));
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .coin-icon { font-size: 2.5rem; }
+        .coin-amount { font-size: 1.3rem; font-weight: 700; color: var(--accent-gold); }
+        .coin-desc { font-size: 0.85rem; color: var(--text-secondary); }
+        
+        .warning-box {
+            background: rgba(237, 137, 54, 0.1);
+            border: 1px solid rgba(237, 137, 54, 0.3);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        
+        .warning-box h4 { color: var(--accent-orange); font-size: 0.95rem; margin-bottom: 8px; }
+        .warning-box p { color: var(--text-secondary); font-size: 0.9rem; }
+        
+        .google-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            background: white;
+            color: #333;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        
+        .google-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255, 255, 255, 0.15); }
+        .google-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .google-btn svg { width: 20px; height: 20px; }
+        
+        /* ==================== DASHBOARD VIEW STYLES ==================== */
+        .dashboard-view {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 24px 16px;
+        }
+        
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 0;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-logo { width: 40px; height: 40px; }
+        .header-title { font-size: 1.25rem; font-weight: 700; }
+        .header-title span { background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--bg-card); }
+        .user-name { font-size: 0.9rem; font-weight: 500; color: var(--text-secondary); }
+        
+        .dashboard-view .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        
+        .stat-card .stat-value {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1;
+        }
+        
+        .stat-card .stat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+        
+        @media (max-width: 600px) { .dashboard-view .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+        
+        .quick-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
+        
+        .action-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        
+        .action-btn.primary { background: var(--accent-gradient); color: white; }
+        .action-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3); }
+        .action-btn.secondary { background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border); }
+        .action-btn.secondary:hover { border-color: var(--accent-purple); }
+        
+        .gs-games-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        
+        .gs-game-card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        
+        .gs-game-card:hover { transform: translateY(-2px); border-color: var(--accent-purple); }
+        .gs-game-card .icon { font-size: 2rem; margin-bottom: 8px; }
+        .gs-game-card .name { font-size: 0.85rem; font-weight: 600; }
+        .gs-game-card .played { font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; }
+        
+        @media (max-width: 500px) { .gs-games-grid { grid-template-columns: repeat(2, 1fr); } }
+        
+        .survey-progress { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .progress-bar { flex: 1; height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--accent-gradient); border-radius: 4px; transition: width 0.3s; }
+        .progress-text { font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; }
+        
+        .survey-question { background: var(--bg-secondary); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+        .question-category { font-size: 0.75rem; color: var(--accent-purple); text-transform: uppercase; font-weight: 600; margin-bottom: 8px; }
+        .question-text { font-size: 1rem; font-weight: 600; margin-bottom: 16px; }
+        
+        .answer-options { display: flex; flex-direction: column; gap: 8px; }
+        .answer-option { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .answer-option:hover { border-color: var(--accent-purple); background: rgba(102, 126, 234, 0.1); }
+        .answer-option.selected { border-color: var(--accent-purple); background: rgba(102, 126, 234, 0.15); }
+        .answer-option input { display: none; }
+        .answer-radio { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .answer-option.selected .answer-radio { border-color: var(--accent-purple); background: var(--accent-purple); }
+        .answer-option.selected .answer-radio::after { content: '✓'; color: white; font-size: 12px; }
+        
+        .rating-scale { display: flex; gap: 8px; justify-content: space-between; }
+        .rating-btn { flex: 1; padding: 12px 8px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+        .rating-btn:hover { border-color: var(--accent-purple); }
+        .rating-btn.selected { background: var(--accent-gradient); border-color: transparent; }
+        .rating-labels { display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.75rem; color: var(--text-muted); }
+        
+        .text-input { width: 100%; padding: 14px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-family: inherit; font-size: 0.95rem; resize: vertical; min-height: 80px; }
+        .text-input:focus { outline: none; border-color: var(--accent-purple); }
+        .text-input::placeholder { color: var(--text-muted); }
+        
+        .submit-btn { width: 100%; padding: 14px; background: var(--accent-gradient); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-top: 16px; font-family: inherit; }
+        .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3); }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        
+        .game-survey-trigger { display: flex; align-items: center; gap: 16px; padding: 16px; background: rgba(237, 137, 54, 0.1); border: 1px solid rgba(237, 137, 54, 0.3); border-radius: 12px; margin-bottom: 12px; }
+        .game-survey-trigger .game-icon { font-size: 2rem; }
+        .game-survey-text { flex: 1; }
+        .game-survey-text h4 { font-size: 0.95rem; margin-bottom: 4px; }
+        .game-survey-text p { font-size: 0.8rem; color: var(--text-secondary); }
+        .game-survey-btn { padding: 8px 16px; background: var(--accent-orange); color: white; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+        
+        .leaderboard-list { display: flex; flex-direction: column; gap: 8px; }
+        .leaderboard-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--bg-secondary); border-radius: 10px; }
+        .leaderboard-item.highlight { background: rgba(102, 126, 234, 0.15); border: 1px solid rgba(102, 126, 234, 0.3); }
+        .rank { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-weight: 700; font-size: 0.85rem; }
+        .rank.gold { background: linear-gradient(135deg, #ffd700, #ffaa00); color: #333; }
+        .rank.silver { background: linear-gradient(135deg, #c0c0c0, #a0a0a0); color: #333; }
+        .rank.bronze { background: linear-gradient(135deg, #cd7f32, #b87333); color: white; }
+        .rank.normal { background: var(--bg-card); color: var(--text-secondary); }
+        .leaderboard-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--bg-card); }
+        .leaderboard-name { flex: 1; font-weight: 500; }
+        .leaderboard-score { font-weight: 700; color: var(--accent-purple); }
+        .leaderboard-metric { font-size: 0.75rem; color: var(--text-muted); }
+        
+        .contest-card { background: linear-gradient(135deg, rgba(240, 147, 251, 0.1), rgba(102, 126, 234, 0.1)); border: 1px solid rgba(240, 147, 251, 0.3); border-radius: 16px; padding: 20px; margin-bottom: 12px; }
+        .contest-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .contest-title { font-size: 1.1rem; font-weight: 700; }
+        .contest-prize { display: flex; align-items: center; gap: 6px; background: rgba(255, 215, 0, 0.2); padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; color: var(--accent-gold); }
+        .contest-desc { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 16px; }
+        .contest-meta { display: flex; justify-content: space-between; align-items: center; }
+        .contest-time { font-size: 0.8rem; color: var(--text-muted); }
+        .contest-join-btn { padding: 10px 20px; background: var(--accent-gradient); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-family: inherit; }
+        
+        .survey-complete { text-align: center; padding: 32px 20px; background: linear-gradient(135deg, rgba(72, 187, 120, 0.1), rgba(102, 126, 234, 0.05)); border-radius: 12px; }
+        .survey-complete .complete-icon { font-size: 3rem; margin-bottom: 12px; }
+        .survey-complete h3 { color: var(--accent-green); margin-bottom: 8px; }
+        .survey-complete p { color: var(--text-secondary); font-size: 0.9rem; }
+        
+        .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--bg-card); color: var(--text-primary); padding: 14px 24px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 1000; animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { transform: translateX(-50%) translateY(100%); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
+        
+        .loading-spinner { width: 40px; height: 40px; border: 3px solid var(--bg-card); border-top-color: var(--accent-purple); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 40px auto; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <!-- Animated Aurora Background -->
+    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; overflow: hidden; pointer-events: none;">
+        <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(ellipse at 20% 20%, rgba(102, 126, 234, 0.66) 0%, transparent 40%), radial-gradient(ellipse at 80% 20%, rgba(240, 147, 251, 0.55) 0%, transparent 40%), radial-gradient(ellipse at 40% 80%, rgba(118, 75, 162, 0.66) 0%, transparent 40%), radial-gradient(ellipse at 80% 80%, rgba(102, 126, 234, 0.5) 0%, transparent 40%); animation: aurora 12s ease-in-out infinite;"></div>
+    </div>
+    
+    <!-- ==================== LANDING VIEW ==================== -->
+    <div id="landing-view" class="landing-view">
+        <!-- Hero -->
+        <section class="hero">
+            <div class="hero-content">
+                <h1 class="brand-title">GAME SHELF</h1>
+                <h2 class="hero-headline">Track Every Daily Puzzle <span>in One Place</span></h2>
+                <p class="hero-subtitle">Finally, one app for all your daily puzzles.</p>
+                <p class="game-list">NYT • LinkedIn • Indie Games • GS Originals • 36+ games</p>
+                
+                <button class="cta-button" onclick="showSignup()">
+                    Start for Free
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </button>
+                <p class="cta-note">No download needed • Works on any device</p>
+            </div>
+            
+            <div class="scroll-hint" onclick="document.querySelector('.stats-bar').scrollIntoView({behavior:'smooth'})">↓ See what's inside</div>
+        </section>
+        
+        <!-- Stats Bar -->
+        <section class="stats-bar">
+            <div class="stats-grid">
+                <div class="stat-item"><div class="stat-number">36+</div><div class="stat-label">Supported Games</div></div>
+                <div class="stat-item"><div class="stat-number">4</div><div class="stat-label">Original Games</div></div>
+                <div class="stat-item"><div class="stat-number">∞</div><div class="stat-label">Streaks to Build</div></div>
+                <div class="stat-item"><div class="stat-number">AI</div><div class="stat-label">Powered Hints</div></div>
+            </div>
+        </section>
+        
+        <!-- AI Hints Section -->
+        <section class="ai-hints">
+            <div class="ai-hints-card">
+                <div class="ai-hints-content">
+                    <span class="new-badge">🤖 Featured</span>
+                    <h2>Stuck? Get <span class="gradient">AI-Powered Hints</span></h2>
+                    <p>Powered by Claude AI, get intelligent hints that help without spoiling. Start with a gentle nudge, or ask for more help — you control how much assistance you get.</p>
+                    <div class="hint-levels">
+                        <div class="hint-level"><div class="hint-level-name">💡 Nudge</div><div class="hint-level-desc">A gentle push</div></div>
+                        <div class="hint-level active"><div class="hint-level-name">🔍 Hint</div><div class="hint-level-desc">More specific</div></div>
+                        <div class="hint-level"><div class="hint-level-name">🎯 Strong</div><div class="hint-level-desc">Almost there</div></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Features -->
+        <section class="features">
+            <div class="section-header">
+                <h2>Everything You Need</h2>
+                <p>Built by puzzle lovers, for puzzle lovers</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card"><div class="feature-icon">📊</div><h3>Track Your Progress</h3><p>See your history, streaks, and stats for every game. Never lose track of your puzzle journey.</p></div>
+                <div class="feature-card"><div class="feature-icon">⚔️</div><h3>Battle Friends</h3><p>Challenge friends to weekly battles. Compare scores and see who's the ultimate puzzler.</p></div>
+                <div class="feature-card"><div class="feature-icon">📸</div><h3>Easy Import</h3><p>Paste share text or upload screenshots. We'll automatically detect and record your results.</p></div>
+                <div class="feature-card"><div class="feature-icon">🏆</div><h3>Achievements</h3><p>Unlock badges for milestones, perfect scores, and special accomplishments.</p></div>
+                <div class="feature-card"><div class="feature-icon">📱</div><h3>Works Everywhere</h3><p>No app store needed. Works on any device with a browser. Install as a PWA for the full experience.</p></div>
+                <div class="feature-card"><div class="feature-icon">🔒</div><h3>Your Data, Yours</h3><p>Sign in with Google to sync across devices. We don't sell your data.</p></div>
+            </div>
+        </section>
+        
+        <!-- Games Section -->
+        <section class="games-section">
+            <div class="section-header">
+                <h2>36+ Games Supported</h2>
+                <p>And we're adding more every week</p>
+            </div>
+            <div class="games-showcase">
+                <div class="game-category">
+                    <div class="category-header"><div class="category-icon">📰</div><h3>New York Times</h3></div>
+                    <div class="games-grid">
+                        <div class="game-pill">🟩 Wordle</div>
+                        <div class="game-pill">🟪 Connections</div>
+                        <div class="game-pill">✏️ Mini Crossword</div>
+                        <div class="game-pill">🐝 Spelling Bee</div>
+                        <div class="game-pill">📍 Strands</div>
+                        <div class="game-pill">🔢 Digits</div>
+                    </div>
+                </div>
+                <div class="game-category">
+                    <div class="category-header"><div class="category-icon">💼</div><h3>LinkedIn</h3></div>
+                    <div class="games-grid">
+                        <div class="game-pill">🔤 Pinpoint</div>
+                        <div class="game-pill">🧩 Queens</div>
+                        <div class="game-pill">🔀 Crossclimb</div>
+                    </div>
+                </div>
+                <div class="game-category">
+                    <div class="category-header"><div class="category-icon">🎮</div><h3>Indie Favorites</h3></div>
+                    <div class="games-grid">
+                        <div class="game-pill">🌍 Worldle</div>
+                        <div class="game-pill">🗺️ Travle</div>
+                        <div class="game-pill">🎬 Framed</div>
+                        <div class="game-pill">📊 Costcodle</div>
+                        <span class="game-count">+20 more</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- GS Originals -->
+        <section class="originals">
+            <div class="section-header">
+                <h2>🎮 Game Shelf Originals</h2>
+                <p>Exclusive games you won't find anywhere else</p>
+            </div>
+            <div class="originals-grid">
+                <a href="https://gameshelf.co/quotle/" class="original-card" target="_blank"><div class="original-icon">💬</div><h4>Quotle</h4><p>Guess the famous quote</p></a>
+                <a href="https://gameshelf.co/slate/" class="original-card" target="_blank"><div class="original-icon">🪨</div><h4>Slate</h4><p>Find the hidden word</p></a>
+                <a href="https://gameshelf.co/rungs/" class="original-card" target="_blank"><div class="original-icon">🪜</div><h4>Rungs</h4><p>Word ladder puzzle</p></a>
+                <a href="https://gameshelf.co/wordboxing/" class="original-card" target="_blank"><div class="original-icon">🥊</div><h4>Word Boxing</h4><p>Multiplayer word battle</p></a>
+            </div>
+        </section>
+        
+        <!-- How It Works -->
+        <section class="how-it-works">
+            <div class="section-header">
+                <h2>Get Started in Seconds</h2>
+            </div>
+            <div class="steps">
+                <div class="step"><div class="step-number">1</div><h4>Sign Up</h4><p>Create an account with Google</p></div>
+                <div class="step"><div class="step-number">2</div><h4>Play Games</h4><p>Play your favorite daily puzzles</p></div>
+                <div class="step"><div class="step-number">3</div><h4>Import Results</h4><p>Paste share text or screenshot</p></div>
+                <div class="step"><div class="step-number">4</div><h4>Track & Compete</h4><p>Build streaks, battle friends</p></div>
+            </div>
+        </section>
+        
+        <!-- Final CTA -->
+        <section class="final-cta">
+            <h2>Ready to track your puzzles?</h2>
+            <p>Join puzzle lovers who never miss a game</p>
+            <button class="cta-button" onclick="showSignup()">
+                Start for Free
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+            <div class="share-buttons">
+                <a href="sms:?body=Check out Game Shelf - track all your daily puzzles in one place! https://gameshelf.co/beta/" class="share-btn">📱 Text a Friend</a>
+                <button class="share-btn" onclick="copyLink()">🔗 Copy Link</button>
+            </div>
+        </section>
+        
+        <footer>
+            <p>Made with 🧩 for puzzle lovers everywhere</p>
+            <p style="margin-top: 8px;">Questions? <a href="/cdn-cgi/l/email-protection#0c686d7a694c6b6d61697f6469606a226f63"><span class="__cf_email__" data-cfemail="52363324371235333f37213a373e347c313d">[email&#160;protected]</span></a></p>
+            <p style="margin-top: 12px; font-size: 0.8rem;">© 2026 Game Shelf • Beta Hub v2.0.0</p>
+        </footer>
+    </div>
+
+    <!-- ==================== SIGNUP VIEW ==================== -->
+    <div id="signup-view" class="signup-view hidden">
+        <a class="back-link" onclick="showLanding()">← Back</a>
+        
+        <div id="referral-banner" class="referral-banner hidden">
+            <div class="referral-icon">🎉</div>
+            <div class="referral-text">Your friend <span id="referrer-name">Someone</span> invited you!</div>
+            <div class="referral-subtext">Join now and you'll both get bonus coins</div>
+            <div class="referral-bonus">🪙 +10 bonus coins for you both</div>
+        </div>
+        
+        <div class="signup-header">
+            <svg class="signup-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <defs><linearGradient id="gsBadgeGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#667eea"/><stop offset="100%" style="stop-color:#764ba2"/></linearGradient></defs>
+                <rect x="5" y="5" width="90" height="90" rx="20" fill="url(#gsBadgeGrad)"/>
+                <g transform="rotate(-12, 35, 50)"><rect x="15" y="28" width="28" height="36" rx="4" fill="white"/><circle cx="43" cy="46" r="6" fill="white"/><text x="29" y="54" font-family="Arial" font-size="20" font-weight="bold" fill="#667eea" text-anchor="middle">G</text></g>
+                <g transform="rotate(12, 65, 50)"><rect x="57" y="28" width="28" height="36" rx="4" fill="rgba(255,255,255,0.9)"/><circle cx="57" cy="46" r="6" fill="url(#gsBadgeGrad)"/><text x="71" y="54" font-family="Arial" font-size="20" font-weight="bold" fill="#764ba2" text-anchor="middle">S</text></g>
+            </svg>
+            <span class="beta-badge">🚀 Early Access</span>
+            <h1 class="signup-title">Join Game Shelf</h1>
+            <p class="signup-subtitle">Be part of shaping the future of puzzle tracking</p>
+        </div>
+        
+        <div class="card">
+            <h3 class="section-title"><span class="emoji">🎁</span> What You Get</h3>
+            <ul class="benefit-list">
+                <li><span class="check">✓</span> Full access to Game Shelf and all features</li>
+                <li><span class="check">✓</span> Track 36+ daily puzzle games</li>
+                <li><span class="check">✓</span> AI-powered hints when you're stuck</li>
+                <li><span class="check">✓</span> Battle friends and compete on leaderboards</li>
+                <li><span class="check">✓</span> Your feedback shapes the product</li>
+            </ul>
+            <div class="coin-highlight">
+                <span class="coin-icon">🪙</span>
+                <div><div class="coin-amount">20 Free Coins</div><div class="coin-desc">To explore premium features</div></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3 class="section-title"><span class="emoji">🤝</span> What We Ask</h3>
+            <ul class="benefit-list">
+                <li><span class="check">☐</span> Use Game Shelf for at least a week</li>
+                <li><span class="check">☐</span> Answer a few quick feedback questions</li>
+                <li><span class="check">☐</span> Report bugs when you find them</li>
+            </ul>
+            <div class="warning-box">
+                <h4>⚠️ This is Beta Software</h4>
+                <p>You may encounter bugs. The good news? We turn around fixes within hours!</p>
+            </div>
+        </div>
+        
+        <div style="text-align: center; padding: 20px 0;">
+            <button id="google-signin-btn" class="google-btn" onclick="signInWithGoogle()">
+                <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                <span>Continue with Google</span>
+            </button>
+            <p style="margin-top: 12px; font-size: 0.8rem; color: var(--text-muted);">We only use Google to sync your progress.</p>
+        </div>
+    </div>
+
+    <!-- ==================== DASHBOARD VIEW ==================== -->
+    <div id="dashboard-view" class="dashboard-view hidden">
+        <header class="header">
+            <div class="header-left">
+                <svg class="header-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <defs><linearGradient id="gsBadgeGrad2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#667eea"/><stop offset="100%" style="stop-color:#764ba2"/></linearGradient></defs>
+                    <rect x="5" y="5" width="90" height="90" rx="20" fill="url(#gsBadgeGrad2)"/>
+                    <g transform="rotate(-12, 35, 50)"><rect x="15" y="28" width="28" height="36" rx="4" fill="white"/><circle cx="43" cy="46" r="6" fill="white"/><text x="29" y="54" font-family="Arial" font-size="20" font-weight="bold" fill="#667eea" text-anchor="middle">G</text></g>
+                    <g transform="rotate(12, 65, 50)"><rect x="57" y="28" width="28" height="36" rx="4" fill="rgba(255,255,255,0.9)"/><circle cx="57" cy="46" r="6" fill="url(#gsBadgeGrad2)"/><text x="71" y="54" font-family="Arial" font-size="20" font-weight="bold" fill="#764ba2" text-anchor="middle">S</text></g>
+                </svg>
+                <div class="header-title"><span>Beta Hub</span></div>
+            </div>
+            <div class="user-info">
+                <span class="user-name" id="header-user-name">User</span>
+                <img class="user-avatar" id="header-avatar" src="" alt="">
+            </div>
+        </header>
+        
+        <div class="card card-highlight">
+            <h2 style="font-size: 1.3rem; margin-bottom: 4px;">👋 Welcome back, <span id="welcome-name">Friend</span>!</h2>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">Your feedback is shaping Game Shelf.</p>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-value" id="stat-games">0</div><div class="stat-label">Games Played</div></div>
+            <div class="stat-card"><div class="stat-value" id="stat-surveys">0</div><div class="stat-label">Surveys Done</div></div>
+            <div class="stat-card"><div class="stat-value" id="stat-streak">0</div><div class="stat-label">Day Streak</div></div>
+            <div class="stat-card"><div class="stat-value" id="stat-coins">0</div><div class="stat-label">Coins</div></div>
+        </div>
+        
+        <div class="quick-actions">
+            <a href="https://gameshelf.co/" class="action-btn primary" target="_blank">🎮 Open Game Shelf</a>
+            <button class="action-btn secondary" onclick="showBattleInfo()">⚔️ Start a Battle</button>
+        </div>
+        
+        <div class="card">
+            <h3 class="section-title"><span class="emoji">🎯</span> Game Shelf Originals</h3>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 16px;">Play our games and tell us what you think!</p>
+            <div class="gs-games-grid">
+                <a href="https://gameshelf.co/quotle/" class="gs-game-card" target="_blank"><div class="icon">💬</div><div class="name">Quotle</div><div class="played" id="quotle-played">Not played</div></a>
+                <a href="https://gameshelf.co/slate/" class="gs-game-card" target="_blank"><div class="icon">🪨</div><div class="name">Slate</div><div class="played" id="slate-played">Not played</div></a>
+                <a href="https://gameshelf.co/rungs/" class="gs-game-card" target="_blank"><div class="icon">🪜</div><div class="name">Rungs</div><div class="played" id="rungs-played">Not played</div></a>
+                <a href="https://gameshelf.co/wordboxing/" class="gs-game-card" target="_blank"><div class="icon">🥊</div><div class="name">Word Boxing</div><div class="played" id="wordboxing-played">Not played</div></a>
+            </div>
+        </div>
+        
+        <div class="card" id="survey-section">
+            <h3 class="section-title" id="survey-title"><span class="emoji">📋</span> Daily Feedback</h3>
+            <div class="survey-progress">
+                <div class="progress-bar"><div class="progress-fill" id="survey-progress-fill" style="width: 0%"></div></div>
+                <span class="progress-text" id="survey-progress-text">0/5 today</span>
+            </div>
+            <div id="survey-questions"></div>
+            <div id="survey-complete" class="survey-complete hidden">
+                <div class="complete-icon">🎉</div><h3>All done for today!</h3><p>Come back tomorrow for new questions.</p>
+            </div>
+        </div>
+        
+        <div class="card" id="game-surveys-section">
+            <h3 class="section-title"><span class="emoji">🎮</span> Game Feedback</h3>
+            <div id="game-survey-triggers"><p style="color: var(--text-muted); font-size: 0.9rem;">Play some games and we'll ask about them!</p></div>
+        </div>
+        
+        <div class="card">
+            <h3 class="section-title"><span class="emoji">💭</span> What's On Your Mind?</h3>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 12px;">Bugs, ideas, frustrations - anything goes!</p>
+            <textarea class="text-input" id="open-feedback" placeholder="Type your thoughts..."></textarea>
+            <button class="submit-btn" onclick="submitOpenFeedback()" id="open-feedback-btn">Send Feedback</button>
+        </div>
+        
+        <div class="card">
+            <h3 class="section-title"><span class="emoji">🏆</span> Beta Leaderboard</h3>
+            <div class="leaderboard-list" id="leaderboard-list"><div class="loading-spinner"></div></div>
+        </div>
+        
+        <div class="card">
+            <h3 class="section-title"><span class="emoji">🎪</span> Contests</h3>
+            <div class="contest-card">
+                <div class="contest-header"><div class="contest-title">⚔️ Battle Royale</div><div class="contest-prize">🪙 100</div></div>
+                <p class="contest-desc">Most battles this week wins!</p>
+                <div class="contest-meta"><span class="contest-time">Ends in 5 days</span><button class="contest-join-btn" onclick="showBattleInfo()">Battle</button></div>
+            </div>
+            <div class="contest-card">
+                <div class="contest-header"><div class="contest-title">📝 7-Day Streak</div><div class="contest-prize">🪙 50</div></div>
+                <p class="contest-desc">Complete daily surveys for 7 days straight.</p>
+                <div class="contest-meta"><span class="contest-time">Ongoing</span><span style="color: var(--accent-green); font-weight: 600;" id="feedback-streak-display">0/7</span></div>
+            </div>
+        </div>
+        
+        <footer style="text-align: center; padding: 40px 0 20px; color: var(--text-muted); font-size: 0.85rem;">
+            <p><a href="/cdn-cgi/l/email-protection#45212433200522242820362d2029236b262a" style="color: var(--accent-purple); text-decoration: none;"><span class="__cf_email__" data-cfemail="acc8cddac9eccbcdc1c9dfc4c9c0ca82cfc3">[email&#160;protected]</span></a></p>
+            <p style="margin-top: 8px;">Beta Hub v2.0.0</p>
+        </footer>
+    </div>
+
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+        // ============ FIREBASE ============
+        const firebaseConfig = { apiKey: "AIzaSyBQVwn8vOrFTzLlm2MYIPBwgZV2xR9AuhM", authDomain: "word-boxing.firebaseapp.com", databaseURL: "https://word-boxing-default-rtdb.firebaseio.com", projectId: "word-boxing" };
+        let auth, db;
+        try { firebase.initializeApp(firebaseConfig); auth = firebase.auth(); db = firebase.database(); } catch (e) { console.error('[Beta] Firebase init failed:', e); }
+        
+        // ============ STATE ============
+        let currentUser = null, userData = null, referralData = null, currentGameSurvey = null;
+        const SIGNUP_BONUS = 20, REFERRAL_BONUS = 10;
+        
+        // ============ QUESTIONS ============
+        const DAILY_QUESTIONS = [
+            { id: 'exp_overall', category: 'Experience', type: 'rating', text: 'Rate your Game Shelf experience today?', min: 1, max: 5, labels: ['Frustrating', 'Great'] },
+            { id: 'exp_easy', category: 'Experience', type: 'rating', text: 'How easy is Game Shelf to use?', min: 1, max: 5, labels: ['Confusing', 'Intuitive'] },
+            { id: 'feat_hints', category: 'Features', type: 'choice', text: 'Have you tried AI Hints?', options: ['Yes, love it', 'Yes, okay', 'Yes, didn\'t like', 'Not yet'] },
+            { id: 'feat_battles', category: 'Features', type: 'choice', text: 'Have you tried battles?', options: ['Yes, fun!', 'Yes, needs work', 'No, not interested', 'No, will try'] },
+            { id: 'feat_missing', category: 'Features', type: 'text', text: 'What feature do you wish we had?' },
+            { id: 'pain_bug', category: 'Issues', type: 'choice', text: 'Any bugs today?', options: ['No bugs!', 'Minor', 'Something broke', 'Couldn\'t use app'] },
+            { id: 'pain_confusing', category: 'Issues', type: 'text', text: 'Most confusing part of Game Shelf?' },
+            { id: 'eng_frequency', category: 'Usage', type: 'choice', text: 'How often do you use Game Shelf?', options: ['Multiple times daily', 'Once a day', 'Few times a week', 'Just started'] },
+            { id: 'eng_recommend', category: 'Usage', type: 'rating', text: 'How likely to recommend Game Shelf?', min: 0, max: 10, labels: ['Not likely', 'Definitely!'] },
+        ];
+        
+        const GAME_QUESTIONS = {
+            quotle: [{ id: 'quotle_fun', type: 'rating', text: 'How fun is Quotle?', min: 1, max: 5, labels: ['Not fun', 'Love it'] }, { id: 'quotle_improve', type: 'text', text: 'What would make Quotle better?' }],
+            slate: [{ id: 'slate_fun', type: 'rating', text: 'How fun is Slate?', min: 1, max: 5, labels: ['Not fun', 'Love it'] }, { id: 'slate_improve', type: 'text', text: 'What would make Slate better?' }],
+            rungs: [{ id: 'rungs_fun', type: 'rating', text: 'How fun is Rungs?', min: 1, max: 5, labels: ['Not fun', 'Love it'] }, { id: 'rungs_improve', type: 'text', text: 'What would make Rungs better?' }],
+            wordboxing: [{ id: 'wb_fun', type: 'rating', text: 'How fun is Word Boxing?', min: 1, max: 5, labels: ['Not fun', 'Love it'] }, { id: 'wb_improve', type: 'text', text: 'What would make Word Boxing better?' }],
+        };
+        
+        // ============ UTILITIES ============
+        function generateOdometerId(uid) { let h = 0; for (let i = 0; i < uid.length; i++) { h = ((h << 5) - h) + uid.charCodeAt(i); h = h & h; } return 'GS' + Math.abs(h).toString(36).toUpperCase().padStart(8, '0'); }
+        function getTodayKey() { return new Date().toISOString().split('T')[0]; }
+        function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+        function showToast(msg, dur = 3000) { document.querySelectorAll('.toast').forEach(t => t.remove()); const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, dur); }
+        function copyLink() { navigator.clipboard.writeText('https://gameshelf.co/beta/'); showToast('✓ Link copied!'); }
+        
+        // ============ VIEW SWITCHING ============
+        function showLanding() {
+            document.getElementById('landing-view').classList.remove('hidden');
+            document.getElementById('signup-view').classList.add('hidden');
+            document.getElementById('dashboard-view').classList.add('hidden');
+            window.scrollTo(0, 0);
+        }
+        
+        function showSignup() {
+            document.getElementById('landing-view').classList.add('hidden');
+            document.getElementById('signup-view').classList.remove('hidden');
+            document.getElementById('dashboard-view').classList.add('hidden');
+            window.scrollTo(0, 0);
+        }
+        
+        function showDashboard() {
+            document.getElementById('landing-view').classList.add('hidden');
+            document.getElementById('signup-view').classList.add('hidden');
+            document.getElementById('dashboard-view').classList.remove('hidden');
+            const name = currentUser.displayName.split(' ')[0];
+            document.getElementById('header-user-name').textContent = name;
+            document.getElementById('welcome-name').textContent = name;
+            document.getElementById('header-avatar').src = currentUser.photoURL || `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23667eea" width="100" height="100"/><text x="50" y="65" text-anchor="middle" fill="white" font-size="40">${name[0]||'?'}</text></svg>`;
+            loadStats(); loadDailySurvey(); loadGameSurveys(); loadLeaderboard();
+            window.scrollTo(0, 0);
+        }
+        
+        // ============ REFERRAL ============
+        async function checkReferral() {
+            const refId = new URLSearchParams(window.location.search).get('ref');
+            if (!refId) return false;
+            try {
+                const snap = await db.ref(`users/${refId}`).once('value');
+                const ref = snap.val();
+                if (ref?.earlyAccess) {
+                    referralData = { odometerId: refId, displayName: ref.displayName || 'A friend' };
+                    document.getElementById('referrer-name').textContent = referralData.displayName.split(' ')[0];
+                    document.getElementById('referral-banner').classList.remove('hidden');
+                    return true;
+                }
+            } catch (e) { console.error('[Beta] Referral lookup failed:', e); }
+            return false;
+        }
+        
+        // ============ AUTH ============
+        async function signInWithGoogle() {
+            const btn = document.getElementById('google-signin-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loading-spinner" style="width:20px;height:20px;margin:0;border-width:2px;"></div>';
+            try { await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
+            catch (e) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg><span>Continue with Google</span>'; if (e.code !== 'auth/popup-closed-by-user') showToast('Sign in failed'); }
+        }
+        
+        auth?.onAuthStateChanged(async user => {
+            if (user) {
+                currentUser = { odometerId: generateOdometerId(user.uid), displayName: user.displayName || 'Player', email: user.email, photoURL: user.photoURL };
+                await loadOrCreateUser();
+                showDashboard();
+            } else {
+                const hasReferral = await checkReferral();
+                if (hasReferral) showSignup();
+                else showLanding();
+            }
+        });
+        
+        async function loadOrCreateUser() {
+            const ref = db.ref(`users/${currentUser.odometerId}`);
+            userData = (await ref.once('value')).val() || {};
+            
+            if (!userData.earlyAccess) {
+                const now = Date.now();
+                let bonus = SIGNUP_BONUS, msg = '🎉 Welcome! 20 coins added!';
+                const updates = { odometer_id: currentUser.odometerId, displayName: currentUser.displayName, email: currentUser.email, photoURL: currentUser.photoURL || '', createdAt: userData.createdAt || now, lastVisit: now, 'earlyAccess/joinedAt': now, 'earlyAccess/source': referralData ? 'referral' : 'beta-hub', 'earlyAccess/initialCoinsGranted': SIGNUP_BONUS };
+                
+                if (referralData) {
+                    bonus += REFERRAL_BONUS;
+                    updates['earlyAccess/referredBy'] = referralData.odometerId;
+                    updates[`tokenHistory/${now+1}`] = { type: 'referral_bonus', amount: REFERRAL_BONUS, currency: 'coins', timestamp: now+1, description: `Referral from ${referralData.displayName}` };
+                    msg = `🎉 Welcome! ${bonus} coins added!`;
+                    try {
+    referral_reward', amount: REFERRAL_BONUS, currency: 'coins', timestamp: now, description: `Invited ${currentUser.displayName}` } });
+                    } catch (e) { console.error('[Beta] Referrer credit failed:', e); }
+                }
+                
+                updates['shelf/wallet/coins'] = (userData.shelf?.wallet?.coins || 0) + bonus;
+                updates[`tokenHistory/${now}`] = { type: 'beta_signup_bonus', amount: SIGNUP_BONUS, currency: 'coins', timestamp: now, description: 'Early Access bonus' };
+                await ref.update(updates);
+                userData = (await ref.once('value')).val();
+                showToast(msg);
+            }
+        }
+        
+        // ============ STATS ============
+        function loadStats() {
+            const games = userData.games || {};
+            let played = 0;
+            for (const g in games) if (games[g].history?.length) played += games[g].history.length;
+            const surveys = Object.keys(userData.earlyAccess?.surveyResponses || {}).length;
+            const streak = userData.earlyAccess?.surveyStreak || 0;
+            const coins = userData.shelf?.wallet?.coins || 0;
+            
+            document.getElementById('stat-games').textContent = played;
+            document.getElementById('stat-surveys').textContent = surveys;
+            document.getElementById('stat-streak').textContent = streak;
+            document.getElementById('stat-coins').textContent = coins;
+            document.getElementById('feedback-streak-display').textContent = `${Math.min(streak,7)}/7`;
+            
+            ['quotle','slate','rungs','wordboxing'].forEach(id => {
+                const el = document.getElementById(`${id}-played`);
+                if (el && games[id]?.history?.length) { el.textContent = `Played ${games[id].history.length}x`; el.style.color = 'var(--accent-green)'; }
+            });
+        }
+        
+        // ============ SURVEY ============
+        function loadDailySurvey() {
+            currentGameSurvey = null;
+            document.getElementById('survey-title').innerHTML = '<span class="emoji">📋</span> Daily Feedback';
+            const today = getTodayKey(), responses = userData.earlyAccess?.surveyResponses || {};
+            const answered = Object.keys(responses).filter(q => responses[q].date === today);
+            const seed = parseInt(today.replace(/-/g, ''));
+            const shuffled = [...DAILY_QUESTIONS].sort((a, b) => ((a.id.charCodeAt(0) * seed) % 100) - ((b.id.charCodeAt(0) * seed) % 100));
+            const todayQs = shuffled.slice(0, 5), remaining = todayQs.filter(q => !answered.includes(q.id));
+            
+            document.getElementById('survey-progress-fill').style.width = `${((5-remaining.length)/5)*100}%`;
+            document.getElementById('survey-progress-text').textContent = `${5-remaining.length}/5 today`;
+            
+            const container = document.getElementById('survey-questions'), complete = document.getElementById('survey-complete');
+            if (!remaining.length) { container.classList.add('hidden'); complete.classList.remove('hidden'); }
+            else { container.classList.remove('hidden'); complete.classList.add('hidden'); renderQuestion(remaining[0], container); }
+        }
+        
+        function renderQuestion(q, container) {
+            let html = '';
+            if (q.type === 'rating') {
+                const btns = []; for (let i = q.min||1; i <= (q.max||5); i++) btns.push(`<button class="rating-btn" onclick="selectRating('${q.id}',${i},this)">${i}</button>`);
+                html = `<div class="rating-scale">${btns.join('')}</div><div class="rating-labels"><span>${q.labels?.[0]||''}</span><span>${q.labels?.[1]||''}</span></div>`;
+            } else if (q.type === 'choice') {
+                html = `<div class="answer-options">${q.options.map(o => `<label class="answer-option" onclick="selectChoice('${q.id}','${escapeHtml(o)}',this)"><input type="radio" name="${q.id}"><span class="answer-radio"></span><span>${escapeHtml(o)}</span></label>`).join('')}</div>`;
+            } else if (q.type === 'text') {
+                html = `<textarea class="text-input" id="text-${q.id}" placeholder="Type here..."></textarea><button class="submit-btn" onclick="submitTextAnswer('${q.id}')">Submit</button>`;
+            }
+            container.innerHTML = `<div class="survey-question"><div class="question-category">${q.category||'Feedback'}</div><div class="question-text">${escapeHtml(q.text)}</div>${html}</div>`;
+        }
+        
+        function selectRating(qId, val, btn) { document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('selected')); btn.classList.add('selected'); submitAnswer(qId, val); }
+        function selectChoice(qId, val, label) { document.querySelectorAll('.answer-option').forEach(o => o.classList.remove('selected')); label.classList.add('selected'); setTimeout(() => submitAnswer(qId, val), 300); }
+        function submitTextAnswer(qId) { const v = document.getElementById(`text-${qId}`).value.trim(); if (!v) return showToast('Please enter a response'); submitAnswer(qId, v); }
+        
+        async function submitAnswer(qId, val) {
+            const today = getTodayKey(), now = Date.now();
+            await db.ref(`users/${currentUser.odometerId}/earlyAccess/surveyResponses/${qId}`).set({ answer: val, date: today, timestamp: now });
+            if (!userData.earlyAccess) userData.earlyAccess = {};
+            if (!userData.earlyAccess.surveyResponses) userData.earlyAccess.surveyResponses = {};
+            userData.earlyAccess.surveyResponses[qId] = { answer: val, date: today, timestamp: now };
+            showToast('✓ Recorded!');
+            
+            if (currentGameSurvey) {
+                const qs = GAME_QUESTIONS[currentGameSurvey.id], idx = qs.findIndex(q => q.id === qId);
+                if (idx < qs.length - 1) setTimeout(() => renderQuestion({ ...qs[idx+1], category: currentGameSurvey.name }, document.getElementById('survey-questions')), 500);
+                else { currentGameSurvey = null; setTimeout(() => { loadDailySurvey(); loadGameSurveys(); }, 500); }
+            } else setTimeout(() => loadDailySurvey(), 500);
+        }
+        
+        // ============ GAME SURVEYS ============
+        function loadGameSurveys() {
+            const container = document.getElementById('game-survey-triggers'), games = userData.games || {}, responses = userData.earlyAccess?.surveyResponses || {};
+            const gsGames = [{id:'quotle',name:'Quotle',icon:'💬'},{id:'slate',name:'Slate',icon:'🪨'},{id:'rungs',name:'Rungs',icon:'🪜'},{id:'wordboxing',name:'Word Boxing',icon:'🥊'}];
+            const triggers = gsGames.filter(g => games[g.id]?.history?.length && !responses[`${g.id==='wordboxing'?'wb':g.id}_fun`]);
+            
+            if (!triggers.length) { container.innerHTML = `<p style="color:var(--text-muted);font-size:0.9rem;">${Object.keys(games).length ? '✓ All games reviewed!' : 'Play games to unlock surveys'}</p>`; return; }
+            container.innerHTML = triggers.map(g => `<div class="game-survey-trigger"><span class="game-icon">${g.icon}</span><div class="game-survey-text"><h4>${g.name}</h4><p>Quick feedback</p></div><button class="game-survey-btn" onclick="showGameSurvey('${g.id}','${g.name}')">Answer</button></div>`).join('');
+        }
+        
+        function showGameSurvey(id, name) {
+            const qs = GAME_QUESTIONS[id]; if (!qs) return;
+            currentGameSurvey = { id, name };
+            document.getElementById('survey-title').innerHTML = `<span class="emoji">🎮</span> ${name}`;
+            document.getElementById('survey-progress-fill').style.width = '0%';
+            document.getElementById('survey-progress-text').textContent = `0/${qs.length}`;
+            document.getElementById('survey-complete').classList.add('hidden');
+            document.getElementById('survey-questions').classList.remove('hidden');
+            renderQuestion({ ...qs[0], category: name }, document.getElementById('survey-questions'));
+            document.getElementById('survey-section').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // ============ OPEN FEEDBACK ============
+        async function submitOpenFeedback() {
+            const textarea = document.getElementById('open-feedback'), btn = document.getElementById('open-feedback-btn'), feedback = textarea.value.trim();
+            if (!feedback) return showToast('Please enter feedback');
+            btn.disabled = true; btn.textContent = 'Sending...';
+            await db.ref(`beta/feedback/${Date.now()}`).set({ userId: currentUser.odometerId, displayName: currentUser.displayName, feedback, timestamp: Date.now(), date: getTodayKey() });
+            textarea.value = ''; btn.disabled = false; btn.textContent = 'Send Feedback';
+            showToast('🙏 Thanks!');
+        }
+        
+        // ============ LEADERBOARD ============
+        async function loadLeaderboard() {
+            const container = document.getElementById('leaderboard-list');
+            try {
+                const snap = await db.ref('users').orderByChild('earlyAccess/joinedAt').limitToLast(50).once('value');
+                const users = snap.val() || {}, scores = [];
+                for (const id in users) {
+                    const u = users[id]; if (!u.earlyAccess) continue;
+                    let played = 0; for (const g in (u.games||{})) if (u.games[g].history) played += u.games[g].history.length;
+                    const surveys = Object.keys(u.earlyAccess.surveyResponses||{}).length, streak = u.earlyAccess.surveyStreak||0;
+                    scores.push({ odometerId: id, name: u.displayName||'Player', photoURL: u.photoURL, score: played + surveys*2 + streak*5, played });
+                }
+                scores.sort((a,b) => b.score - a.score);
+                const top = scores.slice(0,10);
+                if (!top.length) { container.innerHTML = '<p style="color:var(--text-muted)">No testers yet!</p>'; return; }
+                container.innerHTML = top.map((u,i) => {
+                    const me = u.odometerId === currentUser.odometerId, rank = i<1?'gold':i<2?'silver':i<3?'bronze':'normal';
+                    const avatar = u.photoURL || `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23667eea" width="100" height="100"/><text x="50" y="65" text-anchor="middle" fill="white" font-size="40">${u.name[0]||'?'}</text></svg>`;
+                    return `<div class="leaderboard-item ${me?'highlight':''}"><div class="rank ${rank}">${i+1}</div><img class="leaderboard-avatar" src="${escapeHtml(avatar)}"><div class="leaderboard-name">${escapeHtml(u.name)}${me?' (you)':''}</div><div><div class="leaderboard-score">${u.score} pts</div><div class="leaderboard-metric">${u.played} games</div></div></div>`;
+                }).join('');
+            } catch (e) { container.innerHTML = '<p style="color:var(--text-muted)">Error loading</p>'; }
+        }
+        
+        function showBattleInfo() { showToast('Open Game Shelf → Friends → Challenge!'); setTimeout(() => window.open('https://gameshelf.co/', '_blank'), 1500); }
+    </script>
+</body>
+</html>
