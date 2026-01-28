@@ -7,7 +7,7 @@
  * 1. The version in index.html <meta name="version">
  * 2. CACHE_VERSION below
  */
-const CACHE_VERSION = 'v1.2.2';
+const CACHE_VERSION = 'v1.2.5';
 const CACHE_NAME = `quotle-pwa-${CACHE_VERSION}`;
 
 // Files to cache for offline use
