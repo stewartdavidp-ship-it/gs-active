@@ -1,3 +1,15 @@
+Word Boxing v1.0.10
+==================
+Release Date: January 28, 2026
+
+PWA CHANGES
+-----------
+- Removed PWA install banner prompt
+  - PWA infrastructure retained for offline/caching
+  - Users can still install via browser menu if desired
+
+---
+
 Word Boxing v1.0.9
 ==================
 Release Date: January 28, 2026
