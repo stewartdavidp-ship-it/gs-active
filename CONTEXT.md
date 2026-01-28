@@ -1,7 +1,7 @@
 # Game Shelf Ecosystem - Active Development Context
 
-**Archive Date:** January 28, 2026 (Command Center Analysis & Skills Review)  
-**Archive Version:** gs-active-2026-01-28-skills-review
+**Archive Date:** January 28, 2026 (State persistence fixes)  
+**Archive Version:** gs-active-2026-01-28-state-fixes
 
 ---
 
@@ -9,14 +9,15 @@
 
 | App | Version | Key Features |
 |-----|---------|--------------|
-| Game Shelf | 1.2.69 | XSS fixes complete, input sanitization |
-| Quotle | 1.2.2 | 390 quotes, PWA path fixes, presidential quotes |
-| Rungs | 1.0.12 | Fixed rung movement direction |
-| Slate | 1.0.12 | Word puzzle game |
-| Word Boxing | 1.0.7 | Multiplayer word battle |
-| Command Center | 8.2.1 | Blob API for large files, promotion CDN fix |
+| Game Shelf | 1.2.75 | Sound enhancements (hint, wallet), timezone fix |
+| Quotle | 1.2.5 | Touch/tap fixes, state persistence, mute reminder |
+| Rungs | 1.0.14 | State persistence fix, back button, mute reminder |
+| Slate | 1.0.14 | Back button, mute reminder |
+| Word Boxing | 1.0.9 | Back button, test sounds with mute reminder |
+| Command Center | 8.2.7 | Fixed deploy button state bug |
 | Test Plan | 4.0.1 | Added version meta tag |
 | Landing Page | 1.1.0 | Marketing page |
+| Beta Hub | 2.0.0 | Beta program signup and beta user portal |
 
 ---
 
@@ -609,3 +610,151 @@ gs-logos/SKILL.md           ← SKILL-gs-logos-PROPOSED.md
 ### No Version Changes This Session
 
 No app code was modified - this was an analysis and documentation session.
+
+---
+
+## Session: January 28, 2026 (Afternoon) - Beta Program Signup Page
+
+### Beta Signup Page v1.0.0
+
+Created standalone beta signup page for early access program:
+
+**Location:** `gameshelf.co/beta/`
+
+**Features:**
+- Google Sign-In integration (same Firebase project)
+- Credits 20 coins on signup
+- Tracks early access status in Firebase
+- Shows program benefits and expectations
+- Sets appropriate expectations for beta software
+- Handles returning beta members gracefully
+
+**Firebase Structure:**
+```
+users/{odometerId}/
+  earlyAccess/
+    joinedAt: timestamp
+    source: 'beta-page'
+    initialCoinsGranted: 20
+  tokenHistory/{timestamp}/
+    type: 'beta_signup_bonus'
+    amount: 20
+    currency: 'coins'
+    description: 'Early Access signup bonus'
+```
+
+**Why 20 Coins:**
+- Enough to try AI hints (2 coins each = 10 hints)
+- Low enough to encourage exploration without hoarding
+- Can manually grant more to engaged testers
+
+**Deployment:**
+- Single index.html file (not a PWA)
+- Deploy to gameshelf.co/beta/ folder
+- No service worker needed
+
+### Beta Hub v1.1.0 (Expanded)
+
+Evolved from simple signup page to comprehensive beta tester engagement center:
+
+**Dashboard Features:**
+1. **User Stats** - Games played, surveys completed, streak, coins
+2. **Quick Actions** - Launch Game Shelf, Start a Battle
+3. **GS Original Games Grid** - Links to Quotle, Slate, Rungs, Word Boxing with play status
+4. **Daily Survey** - 5 rotating questions per day from pool of 13
+5. **Game-Specific Surveys** - Triggered when user plays a GS game (3 questions each)
+6. **Open Feedback** - Free-form text input stored in `beta/feedback/`
+7. **Leaderboard** - Top 10 beta testers ranked by engagement score
+8. **Active Contests** - Battle Royale Week (100 coins), Feedback Champion (50 coins)
+
+**Survey Question Categories:**
+- Experience (3): overall rating, ease of use, value
+- Features (4): AI hints, battles, import method, missing features
+- Issues (3): bugs, confusing parts, performance
+- Usage (3): frequency, NPS, favorite games
+
+**Game-Specific Survey Triggers:**
+- Automatically detects which GS games user has played
+- Shows survey prompt for games not yet reviewed
+- 3 questions per game: fun rating, specific mechanic, improvements
+
+**Leaderboard Scoring:**
+```
+Score = gamesPlayed + (surveysCompleted × 2) + (streak × 5)
+```
+
+**Firebase Structure (Additional):**
+```
+users/{odometerId}/
+  earlyAccess/
+    surveyResponses/
+      {questionId}: { answer, date, timestamp }
+    surveyStreak: number
+
+beta/
+  feedback/
+    {timestamp}: { userId, displayName, feedback, date }
+```
+
+### Files Created This Session
+- `beta/index.html` - v1.1.0 (Beta Hub)
+- `beta/README.md` - Documentation
+
+---
+
+## Session: January 28, 2026 (Morning) - State Persistence Fixes
+
+### Issues Reported
+
+User testing revealed three state persistence bugs:
+
+1. **Game Shelf (Wordle tracking)**: Game showed as "already played" after midnight
+2. **Rungs**: After winning, returning showed success screen briefly then reset to unplayed state
+3. **Quotle**: After playing, returning showed tutorial choice instead of completed state
+
+### Root Causes & Fixes
+
+**Game Shelf v1.2.72 - Timezone Bug**
+- `getTodayString()` was using `toISOString()` which returns UTC
+- Playing at 11 PM ET recorded as next day in UTC
+- After midnight local time, the "played" date was still tomorrow's UTC date
+- **Fix:** Changed to use local time: `year-month-day` from `new Date()` local components
+
+**Rungs v1.0.13 - Missing Result Fallback**
+- `showAlreadyPlayed()` silently returned if `getTodayResult()` was null
+- This left user with an unplayed game even though `hasPlayedToday()` was true
+- **Fix:** Added fallback UI showing "Already Played" even when detailed result unavailable
+
+**Quotle v1.2.3 - Tutorial Override**
+- `checkFirstTimePlayer()` didn't check for existing todayResult
+- Could show tutorial even if user had already played today
+- `showAlreadyPlayed()` would crash if todayResult was null
+- **Fix:** Added todayResult check before showing tutorial, plus null handling in showAlreadyPlayed
+
+### Files Updated
+- `gameshelf/index.html` - v1.2.72
+- `gameshelf/sw.js` - v1.2.72
+- `gameshelf/RELEASE_NOTES.txt`
+- `rungs/index.html` - v1.0.13 (state fix + back button)
+- `rungs/sw.js` - v1.0.13
+- `rungs/RELEASE_NOTES.txt`
+- `quotle/index.html` - v1.2.3 (state fix + back button)
+- `quotle/sw.js` - v1.2.3
+- `quotle/RELEASE_NOTES.txt`
+- `slate/index.html` - v1.0.13 (back button)
+- `slate/sw.js` - v1.0.13
+- `slate/RELEASE_NOTES.txt`
+- `wordboxing/index.html` - v1.0.8 (back button)
+- `wordboxing/sw.js` - v1.0.8
+- `wordboxing/RELEASE_NOTES.txt`
+- `CONTEXT.md`
+
+### Back Button Addition
+
+Added "← Game Shelf" back button to all four GS original games:
+- **Quotle**: Added to menu-bar (left side)
+- **Rungs**: Added fixed position top-left 
+- **Slate**: Added to header (left side, matches menu button style)
+- **Word Boxing**: Added fixed position top-right (gold accent style)
+
+All buttons link to https://gameshelf.co/ and show abbreviated text on narrow screens.
