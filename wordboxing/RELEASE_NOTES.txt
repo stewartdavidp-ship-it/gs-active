@@ -1,3 +1,29 @@
+Word Boxing v1.0.9
+==================
+Release Date: January 28, 2026
+
+NEW FEATURES
+------------
+- Added "Test Sounds" option in Settings menu
+  - Plays letter found and letter miss sounds
+  - Shows mute reminder after testing
+  - Helps users troubleshoot when device is muted
+
+---
+
+Word Boxing v1.0.8
+==================
+Release Date: January 28, 2026
+
+UI IMPROVEMENTS
+---------------
+- Added "← Game Shelf" back button in top-right corner
+  - Allows easy navigation back to Game Shelf portal
+  - On narrow screens, shows just "←" arrow
+  - Styled to match Word Boxing gold accent theme
+
+---
+
 Word Boxing v1.0.7
 ==================
 Release Date: January 23, 2025
