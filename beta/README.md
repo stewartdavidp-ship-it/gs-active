@@ -1,69 +1,79 @@
 # Game Shelf Beta Hub
 
-**Version:** 1.1.0  
+**Version:** 2.1.3  
 **Deploy to:** `gameshelf.co/beta/`
 
-## What It Does
+## User Type System
 
-A comprehensive beta tester engagement hub:
+Users are routed based on their `userType` field (server-managed):
 
-### For New Users (Signup View)
-- Explains the program (benefits, expectations)
-- User signs in with Google (Firebase Auth)
-- Credits 20 coins to their wallet
-- Sets expectations for beta software
+| Type | Behavior |
+|------|----------|
+| `beta` | Welcome modal → Dashboard |
+| `standard` | Redirect to main Game Shelf |
+| `pending` / none | Show registration view |
 
-### For Returning Users (Dashboard)
+**Server-Side Registration:**
+- `completeBetaRegistration` Cloud Function handles registration
+- Awards coins via transaction (secure)
+- Sets `userType: 'beta'`
+- Legacy users (have `earlyAccess.joinedAt` but no `userType`) auto-migrated
+
+## Views
+
+### Landing Page
+- Hero with app screenshot
+- Feature highlights  
+- Game categories supported
+- GS Originals showcase
+- "Join the Beta" CTA
+
+### Registration View (Pending Users)
+- Shows user's Google avatar/name
+- Beta perks explanation
+- "Complete Beta Registration" button
+- Calls Cloud Function (not direct writes)
+
+### Dashboard (Beta Users)
 1. **Your Stats** - Games played, surveys completed, streak, coins
 2. **Quick Actions** - Launch Game Shelf, Start a Battle
-3. **GS Original Games** - Links to Quotle, Slate, Rungs, Word Boxing with play status
-4. **Daily Survey** - 5 rotating questions per day (3-5 questions)
+3. **GS Original Games** - Links with play status
+4. **Daily Survey** - 5 rotating questions per day
 5. **Game-Specific Surveys** - Triggered when user plays a GS game
 6. **Open Feedback** - Free-form text input
 7. **Leaderboard** - Top 10 beta testers by engagement
 8. **Active Contests** - Battle Royale Week, Feedback Champion
 
-## Survey System
-
-### Daily Questions (13 total, 5 shown per day)
-- **Experience**: Overall rating, ease of use, value
-- **Features**: AI hints, battles, import method, missing features
-- **Issues**: Bugs encountered, confusing parts, performance
-- **Usage**: Frequency, NPS, favorite games
-
-### Game-Specific Questions (3 per game)
-Triggered when user plays one of the GS originals:
-- Quotle, Slate, Rungs, Word Boxing, Game Shelf app
-- Questions about fun factor, specific mechanics, improvements
-
 ## Firebase Structure
 
 ```
 users/{odometerId}/
+  userType: 'pending' | 'beta' | 'standard'
   earlyAccess/
     joinedAt: timestamp
-    source: 'beta-hub'
+    source: 'beta-hub' | 'referral'
+    referredBy: odometerId (optional)
     initialCoinsGranted: 20
     surveyResponses/
       {questionId}: { answer, date, timestamp }
     surveyStreak: number
-  shelf/wallet/coins: +20
+  shelf/wallet/coins: number
 
 beta/
   feedback/
     {timestamp}: { userId, displayName, feedback, date }
 ```
 
-## Leaderboard Scoring
+## Required Cloud Functions
 
-```
-Score = gamesPlayed + (surveysCompleted * 2) + (streak * 5)
-```
+Deploy these before Beta Hub will work:
+
+- `completeBetaRegistration` - Handles registration
+- `getUserType` - Gets user's type for routing
 
 ## Deployment
 
-Single index.html file (not a PWA) - upload to `/beta/` folder on gameshelf.co.
+1. Deploy Cloud Functions first
+2. Upload index.html to `/beta/` folder
 
-## Sharing
-
-Share `https://gameshelf.co/beta/` via LinkedIn, email, text, etc.
+Single HTML file (not a PWA).
