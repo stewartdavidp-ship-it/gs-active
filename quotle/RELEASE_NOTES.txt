@@ -1,3 +1,16 @@
+Quotle v1.2.6
+=============
+Release Date: January 28, 2026
+
+PWA CHANGES
+-----------
+- Removed PWA install banner prompt
+  - PWA infrastructure (manifest, service worker, offline) retained
+  - Users can still install via browser menu if desired
+  - Keeps users in browser for better Game Shelf integration
+
+---
+
 Quotle v1.2.5
 =============
 Release Date: January 28, 2026
