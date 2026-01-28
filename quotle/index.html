@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
-    <meta name="version" content="1.2.5">
+    <meta name="version" content="1.2.6">
     <title>Quotle - Daily Quote Puzzle</title>
     
     <!-- Early initialization: Set defaults and apply dark mode BEFORE any CSS renders -->
@@ -2800,7 +2800,7 @@
     <script>
     /**
      * RB Games Authentication & Cloud Sync Module
-     * Version: 1.2.5 - Realtime Database
+     * Version: 1.2.6 - Realtime Database
      */
     const GSAuth = (function() {
         'use strict';
@@ -3492,7 +3492,7 @@
                     <p><strong>Quote #:</strong> <span id="current-quote-number">Loading...</span></p>
                     <p><strong>Total Quotes:</strong> 365</p>
                     <p><strong>Days Live:</strong> <span id="days-since-launch">Loading...</span></p>
-                    <p><strong>Version:</strong> v1.2.5</p>
+                    <p><strong>Version:</strong> v1.2.6</p>
                 </div>
                 <p style="margin-top: 10px; font-size: 0.85rem; color: var(--slate); line-height: 1.5;">
                     A daily quote guessing game featuring wisdom from ancient philosophers to modern thinkers - spanning over 2,500 years of human thought.
@@ -3777,10 +3777,10 @@
 
     <!-- Game Shelf Integration Module -->
     <script>
-        // ============ GAME SHELF INTEGRATION MODULE v1.2.5 ============
+        // ============ GAME SHELF INTEGRATION MODULE v1.2.6 ============
         (function() {
             'use strict';
-            const GAMESHELF_VERSION = '1.2.5';
+            const GAMESHELF_VERSION = '1.2.6';
             if (window.GameShelfIntegration) return;
             
             window.GameShelfIntegration = {
@@ -3796,7 +3796,7 @@
                         name: config.name || gameId,
                         icon: config.icon || '🎮',
                         url: config.url || window.location.hostname,
-                        version: config.version || '1.2.5',
+                        version: config.version || '1.2.6',
                         type: config.type || 'daily',
                         ...config
                     };
@@ -8704,7 +8704,7 @@
                 playIncorrectSound();
                 soundEnabled = wasEnabled;
                 
-                // v1.2.5: Show mute reminder (browsers can't detect hardware mute)
+                // v1.2.6: Show mute reminder (browsers can't detect hardware mute)
                 setTimeout(() => {
                     showMessage('🔇 No sound? Check if your device is muted', 'info');
                 }, 400);
@@ -8897,7 +8897,7 @@
         }
         
         function checkFirstTimePlayer() {
-            // v1.2.5: Don't show tutorial if user has already played today
+            // v1.2.6: Don't show tutorial if user has already played today
             const todayResult = getTodayResult();
             if (todayResult && todayResult.date === getTodayString()) {
                 // User has played today - show already played screen instead
@@ -9516,7 +9516,7 @@
             
             // Reset game area
             document.getElementById('game-area').style.display = 'block';
-            document.getElementById('game-area').style.flex = '1'; // v1.2.5: Restore flex for new game
+            document.getElementById('game-area').style.flex = '1'; // v1.2.6: Restore flex for new game
             document.getElementById('game-over-screen').style.display = 'none';
             document.getElementById('game-over-screen').innerHTML = '';
             document.getElementById('feedback-list').innerHTML = '';
@@ -10235,7 +10235,7 @@
             document.getElementById('game-over-screen').style.display = 'none';
             document.getElementById('game-over-screen').innerHTML = '';
             document.getElementById('game-area').style.display = 'block';
-            document.getElementById('game-area').style.flex = '1'; // v1.2.5: Restore flex for new game
+            document.getElementById('game-area').style.flex = '1'; // v1.2.6: Restore flex for new game
             document.getElementById('submit-btn').disabled = false;
             
             // Show the guess section
@@ -10271,7 +10271,7 @@
             const todayResult = getTodayResult();
             const stats = getStats();
             
-            // v1.2.5: Handle case where we know user played but result is missing
+            // v1.2.6: Handle case where we know user played but result is missing
             if (!todayResult) {
                 gameOver = true;
                 document.getElementById('game-area').style.display = 'none';
@@ -11247,7 +11247,7 @@
                 locationHint.style.display = 'none';
             }
             
-            // v1.2.5: Collapse game-area flex so results aren't pushed down
+            // v1.2.6: Collapse game-area flex so results aren't pushed down
             const gameArea = document.getElementById('game-area');
             if (gameArea) {
                 gameArea.style.flex = 'none';
@@ -11663,89 +11663,6 @@
                     console.log('[Quotle] SW updated to:', event.data.version);
                 }
             });
-        }
-        
-        // PWA Install Prompt
-        let deferredInstallPrompt = null;
-        
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredInstallPrompt = e;
-            
-            // Show install button if not already installed
-            if (!window.matchMedia('(display-mode: standalone)').matches) {
-                showInstallButton();
-            }
-        });
-        
-        function showInstallButton() {
-            // Check if we already showed install prompt this session
-            if (sessionStorage.getItem('quotle_install_prompted')) return;
-            
-            // Create install banner
-            const banner = document.createElement('div');
-            banner.id = 'pwa-install-banner';
-            banner.innerHTML = `
-                <div style="
-                    position: fixed;
-                    bottom: 20px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background: linear-gradient(135deg, #8B2635, #6B1D29);
-                    color: white;
-                    padding: 12px 20px;
-                    border-radius: 12px;
-                    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    z-index: 9999;
-                    font-family: 'Source Serif 4', serif;
-                    max-width: 90%;
-                ">
-                    <span style="font-size: 1.5rem;">📖</span>
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600;">Install Quotle</div>
-                        <div style="font-size: 0.85rem; opacity: 0.9;">Add to home screen for the best experience</div>
-                    </div>
-                    <button onclick="installPWA()" style="
-                        background: white;
-                        color: #8B2635;
-                        border: none;
-                        padding: 8px 16px;
-                        border-radius: 8px;
-                        font-weight: 600;
-                        cursor: pointer;
-                    ">Install</button>
-                    <button onclick="dismissInstallBanner()" style="
-                        background: transparent;
-                        border: none;
-                        color: white;
-                        font-size: 1.2rem;
-                        cursor: pointer;
-                        padding: 4px;
-                        opacity: 0.7;
-                    ">✕</button>
-                </div>
-            `;
-            document.body.appendChild(banner);
-        }
-        
-        function installPWA() {
-            if (!deferredInstallPrompt) return;
-            
-            deferredInstallPrompt.prompt();
-            deferredInstallPrompt.userChoice.then((choice) => {
-                console.log('[Quotle] Install choice:', choice.outcome);
-                deferredInstallPrompt = null;
-                dismissInstallBanner();
-            });
-        }
-        
-        function dismissInstallBanner() {
-            const banner = document.getElementById('pwa-install-banner');
-            if (banner) banner.remove();
-            sessionStorage.setItem('quotle_install_prompted', 'true');
         }
         
         // Check if running as installed PWA
