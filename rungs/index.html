@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="version" content="1.0.12">
+    <meta name="version" content="1.0.14">
     <title>Rungs - Daily Puzzle</title>
     
     <!-- PWA Support -->
@@ -757,6 +757,40 @@
             flex-direction: column;
             gap: 4px;
             z-index: 50;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 12px;
+            z-index: 50;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: color 0.2s;
+        }
+
+        .back-btn:hover {
+            color: var(--accent-gold);
+        }
+
+        .back-btn .back-text {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        @media (max-width: 400px) {
+            .back-btn .back-text {
+                display: none;
+            }
         }
 
         .hamburger-btn span {
@@ -1633,6 +1667,9 @@
 </head>
 <body>
     <div class="container" style="position: relative;">
+        <!-- Back to Game Shelf Button -->
+        <a href="https://gameshelf.co/" class="back-btn" aria-label="Back to Game Shelf">← <span class="back-text">Game Shelf</span></a>
+        
         <!-- Menu Button -->
         <button class="hamburger-btn" onclick="openMenu()" aria-label="Menu">
             <span></span>
@@ -2156,7 +2193,7 @@
         // ============ GAME SHELF INTEGRATION MODULE v1.0.9 ============
         (function() {
             'use strict';
-            const GAMESHELF_VERSION = '1.0.12';
+            const GAMESHELF_VERSION = '1.0.14';
             if (window.GameShelfIntegration) return;
             
             window.GameShelfIntegration = {
@@ -2172,7 +2209,7 @@
                         name: config.name || gameId,
                         icon: config.icon || '🎮',
                         url: config.url || window.location.hostname,
-                        version: config.version || '1.0.12',
+                        version: config.version || '1.0.14',
                         type: config.type || 'daily',
                         ...config
                     };
@@ -2254,7 +2291,7 @@
         // ============ END GAME SHELF INTEGRATION ============
 
         // ============ CONFIGURATION ============
-        const VERSION = '1.0.12';
+        const VERSION = '1.0.14';
         const GAME_URL = 'https://rfrbrn.github.io/rungs/rungs.html'; // Update this when hosted
         const DEBUG_MODE = false; // Set to true to show test mode in menu
         
@@ -3653,6 +3690,11 @@
             setTimeout(() => {
                 playIncorrectSound();
                 soundEnabled = wasEnabled;
+                
+                // v1.0.14: Show mute reminder (browsers can't detect hardware mute)
+                setTimeout(() => {
+                    showMessage('🔇 No sound? Check if your device is muted', 'info');
+                }, 400);
             }, 600);
         }
 
@@ -4437,12 +4479,24 @@
             const result = getTodayResult();
             const stats = getStats();
             
-            if (!result) return;
-            
             gameOver = true;
             
             const modal = document.getElementById('result-modal');
             const content = document.getElementById('result-content');
+            
+            // v1.0.14: Handle case where we know user played but result is missing
+            if (!result) {
+                content.innerHTML = `
+                    <button class="modal-close-btn" onclick="closeResultModal()">&times;</button>
+                    <h2 class="success">✅ Already Played</h2>
+                    <p style="color: var(--text-muted); margin-bottom: 15px;">You've already completed today's puzzle</p>
+                    <div class="final-result">🪜</div>
+                    ${stats.currentStreak > 1 ? `<p style="margin-top: 10px;">🔥 Current Streak: <strong>${stats.currentStreak}</strong></p>` : ''}
+                    <p style="margin-top: 20px; color: var(--text-muted);">⏰ Come back tomorrow for a new puzzle!</p>
+                `;
+                modal.classList.add('active');
+                return;
+            }
             
             const explanation = currentPuzzle ? currentPuzzle.explanation : '';
             
