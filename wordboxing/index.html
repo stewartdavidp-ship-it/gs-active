@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="version" content="1.0.9">
+    <meta name="version" content="1.0.10">
     <title>Word Boxing 🥊</title>
-    <!-- Version 1.0.9 -->
+    <!-- Version 1.0.10 -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥊</text></svg>">
     
     <!-- PWA Support -->
@@ -3455,7 +3455,7 @@
 
             <!-- 6. GAME INFO -->
             <div class="settings-version">
-                Word Boxing v1.0.9<br>
+                Word Boxing v1.0.10<br>
                 <span style="font-size: 0.7rem;">© 2026 RB Games</span>
             </div>
         </div>
@@ -3558,13 +3558,13 @@
         </div>
     </div>
 
-    <div class="version">v1.0.9 &bull; Word Boxing</div>
+    <div class="version">v1.0.10 &bull; Word Boxing</div>
 
     <script>
-        // ============ GAME SHELF INTEGRATION MODULE v1.0.9 ============
+        // ============ GAME SHELF INTEGRATION MODULE v1.0.10 ============
         (function() {
             'use strict';
-            const GAMESHELF_VERSION = '1.0.9';
+            const GAMESHELF_VERSION = '1.0.10';
             if (window.GameShelfIntegration) return;
             
             window.GameShelfIntegration = {
@@ -3580,7 +3580,7 @@
                         name: config.name || gameId,
                         icon: config.icon || '🎮',
                         url: config.url || window.location.hostname,
-                        version: config.version || '1.0.9',
+                        version: config.version || '1.0.10',
                         type: config.type || 'daily',
                         ...config
                     };
@@ -8360,7 +8360,7 @@ wordboxing.com`;
             saveSettings();
         }
         
-        // v1.0.9: Test sounds function with mute reminder
+        // v1.0.10: Test sounds function with mute reminder
         function testSounds() {
             const wasEnabled = SoundManager.enabled;
             SoundManager.setEnabled(true);
@@ -8755,7 +8755,7 @@ wordboxing.com`;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('Word Boxing v1.0.9 - Boxing bell sounds');
+            console.log('Word Boxing v1.0.10 - Boxing bell sounds');
             console.log('Device ID:', deviceId);
             console.log('Firebase ready:', isFirebaseReady);
 
@@ -8764,7 +8764,7 @@ wordboxing.com`;
                 name: 'Word Boxing',
                 icon: '🥊',
                 url: 'wordboxing.com',
-                version: '1.0.9',
+                version: '1.0.10',
                 type: 'multiplayer'
             });
 
@@ -8905,24 +8905,6 @@ wordboxing.com`;
                     }).catch((e) => console.log('[WordBoxing] SW failed:', e));
             });
         }
-        let deferredInstallPrompt = null;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredInstallPrompt = e;
-            if (!window.matchMedia('(display-mode: standalone)').matches && !sessionStorage.getItem('wb_prompted')) {
-                const b = document.createElement('div');
-                b.id = 'pwa-install-banner';
-                b.innerHTML = `<div style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#c41e3a,#8b1528);color:#eee;padding:12px 20px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:12px;z-index:9999;max-width:90%;border:2px solid #ffd700;font-family:'Oswald',sans-serif;">
-                    <span style="font-size:1.5rem;">🥊</span>
-                    <div style="flex:1;"><div style="font-weight:600;">Install Word Boxing</div><div style="font-size:0.85rem;opacity:0.9;">Add to home screen</div></div>
-                    <button onclick="installPWA()" style="background:#ffd700;color:#12121f;border:none;padding:8px 16px;border-radius:8px;font-weight:600;cursor:pointer;">Install</button>
-                    <button onclick="dismissInstall()" style="background:transparent;border:none;color:#eee;font-size:1.2rem;cursor:pointer;opacity:0.7;">✕</button>
-                </div>`;
-                document.body.appendChild(b);
-            }
-        });
-        function installPWA() { if (deferredInstallPrompt) { deferredInstallPrompt.prompt(); deferredInstallPrompt.userChoice.then(() => { deferredInstallPrompt = null; dismissInstall(); }); } }
-        function dismissInstall() { const b = document.getElementById('pwa-install-banner'); if (b) b.remove(); sessionStorage.setItem('wb_prompted', 'true'); }
     </script>
 </body>
 </html>
