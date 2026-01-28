@@ -1,10 +1,17 @@
 /**
- * Game Shelf AI Hint Helper - Firebase Cloud Functions
+ * Game Shelf Firebase Cloud Functions
  * 
- * IMPROVEMENTS (Jan 28, 2026):
- * - Switched from Sonnet to Haiku (50K vs 30K token limit)
- * - Added hint caching - same hint serves all users
- * - Pre-fetches all 7 levels for Connections when first requested
+ * FUNCTIONS:
+ * - getHint: AI-powered hints with caching
+ * - getHintUsage: Rate limit status
+ * - createCoinCheckout: Stripe payment
+ * - stripeWebhook: Payment webhook
+ * - getGiftOptions, redeemGift, getGiftHistory: Gift system
+ * - resetPurchaseHistory: Dev tool
+ * - dailyCacheCleanup, cleanupHintCache: Cache management
+ * - completeBetaRegistration: Server-side beta signup
+ * - getUserType: Get user's type for routing
+ * - setUserType: Admin placeholder
  * 
  * SETUP:
  * 1. Set the Anthropic API key:
@@ -690,4 +697,201 @@ exports.cleanupHintCache = functions.https.onRequest(async (req, res) => {
         deleted: deletedKeys,
         message: `Cleaned ${deletedKeys.length} old cache entries`
     });
+});
+
+// ============ BETA REGISTRATION ============
+
+// User type constants
+const USER_TYPES = {
+    PENDING: 'pending',   // Authenticated but hasn't completed beta registration
+    BETA: 'beta',         // Completed beta registration
+    STANDARD: 'standard'  // Regular user (future use)
+};
+
+const BETA_SIGNUP_BONUS = 20;
+const BETA_REFERRAL_BONUS = 10;
+
+// Generate odometerId from Firebase UID (must match client-side)
+function generateOdometerId(uid) {
+    let h = 0;
+    for (let i = 0; i < uid.length; i++) {
+        h = ((h << 5) - h) + uid.charCodeAt(i);
+        h = h & h;
+    }
+    return 'GS' + Math.abs(h).toString(36).toUpperCase().padStart(8, '0');
+}
+
+/**
+ * Complete beta registration for a user
+ * - Checks user isn't already beta/standard
+ * - Awards signup bonus (and referral bonus if applicable)
+ * - Sets userType to 'beta'
+ */
+exports.completeBetaRegistration = functions.https.onCall(async (data, context) => {
+    // 1. Verify authentication
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
+    }
+
+    const uid = context.auth.uid;
+    const odometerId = generateOdometerId(uid);
+    const userRef = db.ref(`users/${odometerId}`);
+    
+    try {
+        // 2. Get current user data
+        const snapshot = await userRef.once('value');
+        const userData = snapshot.val() || {};
+        
+        // 3. Check if already beta (can't re-register)
+        if (userData.userType === USER_TYPES.BETA) {
+            return { 
+                success: true, 
+                message: 'Already a beta user', 
+                alreadyBeta: true,
+                userType: USER_TYPES.BETA
+            };
+        }
+        
+        // 4. Check if standard user (can't join beta)
+        if (userData.userType === USER_TYPES.STANDARD) {
+            throw new functions.https.HttpsError('failed-precondition', 'Standard users cannot join beta from this page');
+        }
+        
+        // 5. Check for legacy beta user (has earlyAccess but no userType)
+        if (userData.earlyAccess?.joinedAt && !userData.userType) {
+            // Just set the type, don't award coins again
+            await userRef.update({ userType: USER_TYPES.BETA });
+            console.log(`Migrated legacy beta user: ${odometerId}`);
+            return { 
+                success: true, 
+                message: 'Welcome back! Your beta status has been confirmed.', 
+                migrated: true,
+                userType: USER_TYPES.BETA
+            };
+        }
+        
+        const now = Date.now();
+        const referredBy = data.referredBy || null;
+        
+        // 6. Build updates
+        const updates = {
+            userType: USER_TYPES.BETA,
+            'earlyAccess/joinedAt': now,
+            'earlyAccess/source': referredBy ? 'referral' : 'beta-hub',
+            'earlyAccess/initialCoinsGranted': BETA_SIGNUP_BONUS
+        };
+        
+        let totalBonus = BETA_SIGNUP_BONUS;
+        let message = '🎉 Welcome! 20 coins added!';
+        
+        // 7. Handle referral
+        if (referredBy) {
+            const referrerSnapshot = await db.ref(`users/${referredBy}`).once('value');
+            const referrerData = referrerSnapshot.val();
+            
+            // Verify referrer is a valid beta user
+            if (referrerData && (referrerData.userType === USER_TYPES.BETA || referrerData.earlyAccess?.joinedAt)) {
+                totalBonus += BETA_REFERRAL_BONUS;
+                updates['earlyAccess/referredBy'] = referredBy;
+                updates[`tokenHistory/${now + 1}`] = {
+                    type: 'referral_bonus',
+                    amount: BETA_REFERRAL_BONUS,
+                    currency: 'coins',
+                    timestamp: now + 1,
+                    description: `Referral from ${referrerData.displayName || 'a friend'}`
+                };
+                message = `🎉 Welcome! ${totalBonus} coins added!`;
+                
+                // Credit the referrer using transaction
+                const referrerCoinsRef = db.ref(`users/${referredBy}/shelf/wallet/coins`);
+                await referrerCoinsRef.transaction((current) => (current || 0) + BETA_REFERRAL_BONUS);
+                
+                // Record referrer's history
+                await db.ref(`users/${referredBy}/tokenHistory/${now}`).set({
+                    type: 'referral_reward',
+                    amount: BETA_REFERRAL_BONUS,
+                    currency: 'coins',
+                    timestamp: now,
+                    description: `Invited ${userData.displayName || context.auth.token.name || 'a new user'}`
+                });
+                
+                console.log(`Referral bonus: ${referredBy} credited ${BETA_REFERRAL_BONUS} coins`);
+            }
+        }
+        
+        // 8. Award signup bonus using transaction
+        const coinsRef = db.ref(`users/${odometerId}/shelf/wallet/coins`);
+        await coinsRef.transaction((current) => (current || 0) + totalBonus);
+        
+        // 9. Record signup bonus history
+        updates[`tokenHistory/${now}`] = {
+            type: 'beta_signup_bonus',
+            amount: BETA_SIGNUP_BONUS,
+            currency: 'coins',
+            timestamp: now,
+            description: 'Early Access bonus'
+        };
+        
+        // 10. Apply all updates
+        await userRef.update(updates);
+        
+        console.log(`Beta registration complete: ${odometerId}, coins: ${totalBonus}`);
+        
+        return {
+            success: true,
+            message: message,
+            coinsAwarded: totalBonus,
+            userType: USER_TYPES.BETA
+        };
+        
+    } catch (error) {
+        console.error('completeBetaRegistration error:', error);
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
+        }
+        throw new functions.https.HttpsError('internal', 'Registration failed. Please try again.');
+    }
+});
+
+/**
+ * Get user's current type
+ * Useful for routing decisions on client
+ */
+exports.getUserType = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
+    }
+    
+    const odometerId = generateOdometerId(context.auth.uid);
+    const snapshot = await db.ref(`users/${odometerId}`).once('value');
+    const userData = snapshot.val() || {};
+    
+    let userType = userData.userType;
+    
+    // Check for legacy beta users without userType
+    if (!userType && userData.earlyAccess?.joinedAt) {
+        userType = USER_TYPES.BETA;
+        // Note: Don't auto-migrate here, let completeBetaRegistration handle it
+    }
+    
+    return { 
+        userType: userType || USER_TYPES.PENDING,
+        isLegacy: !userData.userType && !!userData.earlyAccess?.joinedAt
+    };
+});
+
+/**
+ * Admin function to set user type (for future use)
+ * Could be extended to require admin auth check
+ */
+exports.setUserType = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
+    }
+    
+    const { targetUserId, newType } = data;
+    
+    // For now, only allow self-service pending -> beta via completeBetaRegistration
+    // This is a placeholder for future admin functionality
+    throw new functions.https.HttpsError('permission-denied', 'Admin access required');
 });
