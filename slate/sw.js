@@ -1,8 +1,8 @@
 /**
  * Slate PWA Service Worker
- * Version: 1.0.9
+ * Version: 1.0.12
  */
-const CACHE_VERSION = 'v1.0.9';
+const CACHE_VERSION = 'v1.0.14';
 const CACHE_NAME = `slate-pwa-${CACHE_VERSION}`;
 
 const CACHE_FILES = [
