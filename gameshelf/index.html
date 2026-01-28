@@ -13,7 +13,7 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-    <meta name="version" content="1.2.69">
+    <meta name="version" content="1.2.75">
     <meta name="gs-app-id" content="gameshelf">
     <meta name="theme-color" content="#667eea">
     <meta name="description" content="Track your daily puzzle games, build streaks, compete with friends!">
@@ -7904,23 +7904,9 @@
             display: none;
         }
         
-        /* Feedback Mode Indicator */
+        /* Feedback Mode Indicator - v1.2.75: Hidden permanently */
         .uat-mode-badge {
-            position: fixed;
-            top: 8px;
-            left: 8px;
-            background: linear-gradient(135deg, #f59e0b, #f97316);
-            color: white;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            z-index: 1001;
-            display: none;
-            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
-        }
-        .uat-mode-badge.active {
-            display: block;
+            display: none !important;
         }
         
         /* Debug Log Panel */
@@ -8026,7 +8012,7 @@
             </svg>
             <div style="display: flex; flex-direction: column; line-height: 1.2;">
                 <span>Game Shelf</span>
-                <span style="font-size: 0.55rem; color: var(--accent-orange); font-weight: 600;">v1.2.69</span>
+                <span style="font-size: 0.55rem; color: var(--accent-orange); font-weight: 600;">v1.2.75</span>
             </div>
         </div>
         <div class="header-right">
@@ -8096,7 +8082,7 @@
                                    oninput="setVolume(this.value)" onchange="setVolume(this.value)">
                             <span class="icon">🔊</span>
                         </div>
-                        <a class="settings-link" onclick="showSoundCustomizer(); toggleSettingsMenu();">
+                        <a class="settings-link" onclick="showSoundCustomizer()">
                             <span class="icon">🎵</span>
                             Customize Sounds
                         </a>
@@ -8120,7 +8106,7 @@
                     <!-- Game Launch Preferences -->
                     <div class="settings-section">
                         <div class="settings-section-title">🚀 Game Launch</div>
-                        <a class="settings-link" onclick="showLaunchPrefsManager(); toggleSettingsMenu();">
+                        <a class="settings-link" onclick="showLaunchPrefsManager()">
                             <span class="icon">📱</span>
                             Manage App vs Browser
                         </a>
@@ -8144,7 +8130,7 @@
                     <!-- Daily Goal -->
                     <div class="settings-section">
                         <div class="settings-section-title">🎯 Daily Goal</div>
-                        <a class="settings-link" onclick="resetDailyGoal(); toggleSettingsMenu();">
+                        <a class="settings-link" onclick="resetDailyGoal()">
                             <span class="icon">🎯</span>
                             Set Daily Goal
                         </a>
@@ -8154,21 +8140,21 @@
                     <div class="settings-section">
                         <div class="settings-section-title">📦 Data</div>
                         <!-- Export/Import hidden for now - using cloud sync instead
-                        <a class="settings-link" onclick="exportData(); toggleSettingsMenu();">
+                        <a class="settings-link" onclick="exportData()">
                             <span class="icon">📤</span>
                             Export Data
                         </a>
-                        <a class="settings-link" onclick="importData(); toggleSettingsMenu();">
+                        <a class="settings-link" onclick="importData()">
                             <span class="icon">📥</span>
                             Import Data
                         </a>
                         -->
-                        <a class="settings-link" onclick="forceAppUpdate(); toggleSettingsMenu();">
+                        <a class="settings-link" onclick="forceAppUpdate()">
                             <span class="icon">🔄</span>
                             Force Update Check
                         </a>
                         <p class="settings-desc">Check for new version and reload</p>
-                        <a class="settings-link" onclick="clearAllData(); toggleSettingsMenu();" style="color: var(--accent-red);">
+                        <a class="settings-link" onclick="clearAllData()" style="color: var(--accent-red);">
                             <span class="icon">🗑️</span>
                             Reset All Data
                         </a>
@@ -8199,7 +8185,7 @@
                             Show floating feedback button for reporting issues
                         </p>
                         
-                        <a class="settings-link" onclick="resetPurchaseLimits(); toggleSettingsMenu();" style="margin-top: 12px;">
+                        <a class="settings-link" onclick="resetPurchaseLimits()" style="margin-top: 12px;">
                             <span class="icon">🧹</span>
                             Reset Purchase Limits
                         </a>
@@ -8212,7 +8198,7 @@
             <div class="settings-section">
                 <div class="settings-section-title">☁️ Account</div>
                 <div id="menu-account-section">
-                    <a class="settings-link" onclick="signInWithGoogle(); toggleSettingsMenu();">
+                    <a class="settings-link" onclick="signInWithGoogle()">
                         <span class="icon">🔐</span>
                         <span id="auth-menu-text">Sign in with Google</span>
                     </a>
@@ -8223,7 +8209,7 @@
             <!-- My Games -->
             <div class="settings-section">
                 <div class="settings-section-title">🎮 My Games</div>
-                <a class="settings-link" onclick="startSetupFlow(); toggleSettingsMenu();">
+                <a class="settings-link" onclick="startSetupFlow(); toggleSettingsMenu()">
                     <span class="icon">⚙️</span>
                     Reconfigure Games
                 </a>
@@ -8233,7 +8219,7 @@
             <!-- Invite Friends -->
             <div class="settings-section">
                 <div class="settings-section-title">🎁 Invite Friends</div>
-                <a class="settings-link" onclick="showReferralSheet(); toggleSettingsMenu();">
+                <a class="settings-link" onclick="showReferralSheet()">
                     <span class="icon">📨</span>
                     Share & Earn Tokens
                 </a>
@@ -8243,7 +8229,7 @@
             <!-- Achievements -->
             <div class="settings-section">
                 <div class="settings-section-title">🏆 Achievements</div>
-                <a class="settings-link" onclick="showAchievements(); toggleSettingsMenu();">
+                <a class="settings-link" onclick="showAchievements()">
                     <span class="icon">🏆</span>
                     View Achievements
                 </a>
@@ -8253,7 +8239,7 @@
             <!-- Rewards Shop -->
             <div class="settings-section">
                 <div class="settings-section-title">🛍️ Rewards Shop</div>
-                <a class="settings-link" onclick="showMerchStore(); toggleSettingsMenu();">
+                <a class="settings-link" onclick="showMerchStore()">
                     <span class="icon">🛍️</span>
                     Redeem Rewards
                 </a>
@@ -8263,7 +8249,7 @@
             <!-- Report Issue -->
             <div class="settings-section">
                 <div class="settings-section-title">💬 Feedback</div>
-                <a class="settings-link" onclick="reportIssue(); toggleSettingsMenu();">
+                <a class="settings-link" onclick="reportIssue()">
                     <span class="icon">📝</span>
                     Report Issue / Request Feature
                 </a>
@@ -8273,19 +8259,19 @@
             <!-- Help & About - At bottom, always visible -->
             <div class="settings-section">
                 <div class="settings-section-title">ℹ️ Help & About</div>
-                <a class="settings-link" onclick="startTutorial(); toggleSettingsMenu();">
+                <a class="settings-link" onclick="startTutorial(); toggleSettingsMenu()">
                     <span class="icon">📖</span>
                     How to Use Game Shelf
                 </a>
                 <p class="settings-desc">Quick tour of all features</p>
-                <a class="settings-link" onclick="showAbout(); toggleSettingsMenu();">
+                <a class="settings-link" onclick="showAbout()">
                     <span class="icon">🎮</span>
                     About Game Shelf
                 </a>
             </div>
         </div>
         <div class="settings-footer">
-            <div class="settings-version">Game Shelf PWA v1.2.69</div>
+            <div class="settings-version">Game Shelf PWA v1.2.75</div>
         </div>
     </div>
     
@@ -8364,12 +8350,12 @@
             
             <div class="primary-action">
                 <button class="big-log-button" 
-                    onmousedown="handleRecordButtonDown()" 
-                    onmouseup="handleRecordButtonUp()" 
-                    onmouseleave="handleRecordButtonUp()"
-                    ontouchstart="handleRecordButtonDown()" 
-                    ontouchend="handleRecordButtonUp()"
-                    ontouchcancel="handleRecordButtonUp()">
+                    onmousedown="handleRecordButtonDown(event)" 
+                    onmouseup="handleRecordButtonUp(event)" 
+                    onmouseleave="handleRecordButtonUp(event)"
+                    ontouchstart="handleRecordButtonDown(event)" 
+                    ontouchend="handleRecordButtonUp(event)"
+                    ontouchcancel="handleRecordButtonUp(event)">
                     <span style="font-size: 1.3rem;">📋</span>
                     <span>Record Game</span>
                 </button>
@@ -14715,7 +14701,12 @@ Wordle 1,234 3/6
         }
         
         function getTodayString() {
-            return new Date().toISOString().split('T')[0];
+            // v1.2.72: Use local time, not UTC (fixes timezone bug where late-night plays recorded as next day)
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
         }
         
         function getTodayHistory() {
@@ -15518,7 +15509,7 @@ Wordle 1,234 3/6
                                 <div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(currentUser.email || '')}</div>
                             </div>
                         </div>
-                        <a class="settings-link" onclick="signOut(); toggleSettingsMenu();" style="color: var(--accent-red);">
+                        <a class="settings-link" onclick="signOut()" style="color: var(--accent-red);">
                             <span class="icon">🚪</span>
                             Sign Out
                         </a>
@@ -15528,7 +15519,7 @@ Wordle 1,234 3/6
                 if (authMenuText) authMenuText.textContent = 'Sign in with Google';
                 if (menuAccountSection) {
                     menuAccountSection.innerHTML = `
-                        <a class="settings-link" onclick="signInWithGoogle(); toggleSettingsMenu();">
+                        <a class="settings-link" onclick="signInWithGoogle()">
                             <span class="icon">🔐</span>
                             <span>Sign in with Google</span>
                         </a>
@@ -16221,6 +16212,9 @@ Wordle 1,234 3/6
                     saveData();
                     renderWallet();
                     
+                    // v1.2.75: Play coin drop sound for referral rewards
+                    playSound('walletAdd');
+                    
                     showToast(`🎁 +${totalTokens} tokens from referrals!`);
                     logActivity('referral-reward', { tokens: totalTokens, friends: messages });
                     
@@ -16288,7 +16282,9 @@ Wordle 1,234 3/6
             // Sound Events - all places where sounds can play
             events: {
                 achievement: { name: 'Achievement Unlocked', icon: '🏆', description: 'When you earn an achievement' },
-                coin: { name: 'Earn Tokens', icon: '🪙', description: 'When you earn tokens or coins' },
+                coin: { name: 'Earn Tokens', icon: '🪙', description: 'When you earn tokens from games' },
+                walletAdd: { name: 'Coins to Wallet', icon: '💰', description: 'When coins are added to your wallet' },
+                hint: { name: 'Hint Received', icon: '💡', description: 'When you receive an AI hint' },
                 streak: { name: 'Streak Bonus', icon: '🔥', description: 'When your streak increases' },
                 gameComplete: { name: 'Game Complete', icon: '✅', description: 'When you complete a game' },
                 levelUp: { name: 'Level Up', icon: '⬆️', description: 'When you reach a new level' },
@@ -16309,6 +16305,7 @@ Wordle 1,234 3/6
                 
                 // Retro Game Sounds
                 coin8bit: { name: '8-bit Coin', category: 'Retro', icon: '🎮' },
+                coinDrop: { name: 'Slot Machine Coins', category: 'Retro', icon: '🎰' },
                 powerup: { name: 'Power Up', category: 'Retro', icon: '⚡' },
                 levelup8bit: { name: '8-bit Level Up', category: 'Retro', icon: '🆙' },
                 blip: { name: 'Blip', category: 'Retro', icon: '📟' },
@@ -16331,6 +16328,7 @@ Wordle 1,234 3/6
                 notify1: { name: 'Gentle Notify', category: 'Notify', icon: '📣' },
                 notify2: { name: 'Alert', category: 'Notify', icon: '⚠️' },
                 complete: { name: 'Task Complete', category: 'Notify', icon: '✅' },
+                lightbulb: { name: 'Lightbulb Moment', category: 'Notify', icon: '💡' },
                 
                 // Fun
                 sparkle: { name: 'Sparkle', category: 'Fun', icon: '✨' },
@@ -16345,6 +16343,8 @@ Wordle 1,234 3/6
             defaults: {
                 achievement: 'fanfare',
                 coin: 'coin8bit',
+                walletAdd: 'coinDrop',
+                hint: 'lightbulb',
                 streak: 'powerup',
                 gameComplete: 'complete',
                 levelUp: 'levelup8bit',
@@ -16363,9 +16363,28 @@ Wordle 1,234 3/6
                 const saved = localStorage.getItem('gameshelfSoundPrefs');
                 this.preferences = saved ? JSON.parse(saved) : { ...this.defaults };
                 if (!this.ctx) {
-                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    try {
+                        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                        console.log('🔊 AudioContext created, state:', this.ctx.state);
+                    } catch (e) {
+                        console.log('🔊 AudioContext creation failed:', e);
+                    }
                 }
                 return this.ctx;
+            },
+            
+            // v1.2.75: Async resume for iOS
+            async ensureResumed() {
+                if (!this.ctx) this.init();
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    try {
+                        await this.ctx.resume();
+                        console.log('🔊 AudioContext resumed, state:', this.ctx.state);
+                    } catch (e) {
+                        console.log('🔊 AudioContext resume failed:', e);
+                    }
+                }
+                return this.ctx?.state === 'running';
             },
             
             getSoundForEvent(eventId) {
@@ -16377,23 +16396,34 @@ Wordle 1,234 3/6
                 localStorage.setItem('gameshelfSoundPrefs', JSON.stringify(this.preferences));
             },
             
-            playEvent(eventId) {
+            async playEvent(eventId) {
                 if (!this.enabled) return;
                 const soundEnabled = appData?.settings?.soundEnabled !== false;
                 if (!soundEnabled) return;
                 const soundId = this.getSoundForEvent(eventId);
                 if (soundId === 'none') return;
-                this.playSound(soundId);
+                await this.playSound(soundId);
             },
             
-            playSound(soundId) {
+            async playSound(soundId) {
                 const soundEnabled = appData?.settings?.soundEnabled !== false;
                 if (!this.enabled && soundId !== 'preview') return;
                 if (!soundEnabled && soundId !== 'preview') return;
                 
                 try {
                     const ctx = this.init();
-                    if (ctx.state === 'suspended') ctx.resume();
+                    if (!ctx) return;
+                    
+                    // v1.2.75: Must await resume on iOS
+                    if (ctx.state === 'suspended') {
+                        await ctx.resume();
+                    }
+                    
+                    // Double-check we're running
+                    if (ctx.state !== 'running') {
+                        console.log('🔊 AudioContext not running:', ctx.state);
+                        return;
+                    }
                     
                     const masterGain = ctx.createGain();
                     masterGain.gain.value = this.volume;
@@ -16425,6 +16455,34 @@ Wordle 1,234 3/6
                             this._playTone(ctx, masterGain, [
                                 { freq: 988, time: 0, dur: 0.08, type: 'square', vol: 0.3 },
                                 { freq: 1319, time: 0.08, dur: 0.15, type: 'square', vol: 0.3 }
+                            ]);
+                            break;
+                        case 'coinDrop':
+                            // Slot machine coin drop - multiple coins falling
+                            this._playTone(ctx, masterGain, [
+                                // First wave of coins
+                                { freq: 2200, time: 0, dur: 0.04, type: 'square', vol: 0.25 },
+                                { freq: 1800, time: 0.05, dur: 0.04, type: 'square', vol: 0.2 },
+                                { freq: 2400, time: 0.1, dur: 0.04, type: 'square', vol: 0.25 },
+                                { freq: 2000, time: 0.15, dur: 0.04, type: 'square', vol: 0.2 },
+                                // Second wave
+                                { freq: 2600, time: 0.2, dur: 0.04, type: 'square', vol: 0.22 },
+                                { freq: 1900, time: 0.25, dur: 0.04, type: 'square', vol: 0.18 },
+                                { freq: 2300, time: 0.3, dur: 0.04, type: 'square', vol: 0.2 },
+                                { freq: 2100, time: 0.35, dur: 0.04, type: 'square', vol: 0.18 },
+                                // Final coins settling
+                                { freq: 2500, time: 0.4, dur: 0.03, type: 'square', vol: 0.15 },
+                                { freq: 2000, time: 0.45, dur: 0.03, type: 'square', vol: 0.12 },
+                                { freq: 2200, time: 0.5, dur: 0.05, type: 'square', vol: 0.1 }
+                            ]);
+                            break;
+                        case 'lightbulb':
+                            // Lightbulb moment - bright ascending sparkle
+                            this._playTone(ctx, masterGain, [
+                                { freq: 600, time: 0, dur: 0.1, type: 'sine', vol: 0.2 },
+                                { freq: 900, time: 0.08, dur: 0.12, type: 'sine', vol: 0.25 },
+                                { freq: 1200, time: 0.18, dur: 0.15, type: 'sine', vol: 0.3 },
+                                { freq: 1600, time: 0.3, dur: 0.2, type: 'sine', vol: 0.25 }
                             ]);
                             break;
                         case 'powerup':
@@ -16638,6 +16696,12 @@ Wordle 1,234 3/6
             SoundManager.enabled = true;
             SoundManager.playSound(soundId);
             SoundManager.enabled = oldEnabled;
+            
+            // v1.2.75: Show mute reminder after a short delay
+            // (browsers can't detect hardware mute, so we remind users)
+            setTimeout(() => {
+                showToast('🔇 No sound? Check if your device is muted', 'info', 3000);
+            }, 800);
         }
         
         function showSoundCustomizer() {
@@ -16883,7 +16947,7 @@ Wordle 1,234 3/6
         }
         
         function showAbout() {
-            const version = '1.2.69';
+            const version = '1.2.75';
             const aboutText = `🧩 Game Shelf PWA
 
 Track your daily puzzle games in one place!
@@ -18332,6 +18396,9 @@ Made with ❤️ for puzzle enthusiasts`;
                 if (myPrize > 0) {
                     saveData();
                     renderWallet();
+                    
+                    // v1.2.75: Play coin drop sound for prize
+                    playSound('walletAdd');
                 }
                 
                 // Show battle results modal
@@ -19672,6 +19739,9 @@ Made with ❤️ for puzzle enthusiasts`;
                 saveData();
                 renderWallet();
                 
+                // v1.2.75: Play coin drop sound for wallet addition
+                playSound('walletAdd');
+                
                 closeGenericSheet();
                 showToast(`🎉 Converted ${amount} coin${amount > 1 ? 's' : ''} to ${(amount * 100).toLocaleString()} tokens!`);
                 
@@ -19746,6 +19816,9 @@ Made with ❤️ for puzzle enthusiasts`;
                 saveData();
                 renderWallet();
                 
+                // v1.2.75: Play coin drop sound
+                playSound('walletAdd');
+                
                 // Show celebration
                 setTimeout(() => {
                     showToast('🎉 +50 tokens for your first 5-day streak!');
@@ -19773,6 +19846,9 @@ Made with ❤️ for puzzle enthusiasts`;
                 saveData();
                 renderWallet();
                 
+                // v1.2.75: Play coin drop sound
+                playSound('walletAdd');
+                
                 // Show celebration
                 setTimeout(() => {
                     showToast('🎉 +20 tokens for trying all Game Shelf originals!');
@@ -19786,6 +19862,9 @@ Made with ❤️ for puzzle enthusiasts`;
             appData.wallet.tokens = (appData.wallet?.tokens || 0) + 5;
             saveData();
             renderWallet();
+            
+            // v1.2.75: Play coin drop sound
+            playSound('walletAdd');
             
             showToast('🎟️ +5 tokens for battle participation!');
             logActivity('reward-earned', { type: 'battle-participation', tokens: 5, battle: battleName });
@@ -20399,7 +20478,7 @@ Made with ❤️ for puzzle enthusiasts`;
                     ...data,
                     platform: getPlatform(),
                     isStandalone: isStandalone(),
-                    appVersion: '1.2.69'
+                    appVersion: '1.2.75'
                 }
             };
             
@@ -21327,6 +21406,19 @@ Made with ❤️ for puzzle enthusiasts`;
         }
         
         function openGameUrl(launchUrl) {
+            // v1.2.75: On iOS PWA, show first-time tip about returning from games
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+            
+            if (isIOS && isStandalone && launchUrl.startsWith('http')) {
+                // Check if user has seen the return tip
+                const hasSeenReturnTip = localStorage.getItem('gs_seen_return_tip');
+                if (!hasSeenReturnTip) {
+                    localStorage.setItem('gs_seen_return_tip', 'true');
+                    showToast('Tap ✕ or swipe down to return', 'info', 2500);
+                }
+            }
+            
             if (launchUrl.startsWith('http')) {
                 window.open(launchUrl, '_blank');
             } else {
@@ -22698,7 +22790,7 @@ Hint levels:
             
             // Show sign-in prompt if not logged in
             if (!currentUser) {
-                document.getElementById('hint-error').innerHTML = '🔐 <strong>Sign in required</strong><br>AI hints require a Game Shelf account. <a href="#" onclick="closeHintSheet(); switchTab(\'social\'); return false;" style="color: var(--accent-purple);">Sign in →</a>';
+                document.getElementById('hint-error').innerHTML = '🔐 <strong>Sign in required</strong><br>AI hints require a Game Shelf account. <a href="#" onclick="closeHintSheet(); signInWithGoogle(); return false;" style="color: var(--accent-purple);">Sign in →</a>';
                 document.getElementById('hint-error').style.display = 'block';
             }
         }
@@ -22816,7 +22908,7 @@ Hint levels:
             
             // Check if user is signed in
             if (!currentUser) {
-                document.getElementById('hint-error').textContent = 'Please sign in to use AI hints.';
+                document.getElementById('hint-error').innerHTML = '🔐 <a href="#" onclick="closeHintSheet(); signInWithGoogle(); return false;" style="color: var(--accent-purple);">Sign in</a> to use AI hints.';
                 document.getElementById('hint-error').style.display = 'block';
                 return;
             }
@@ -22941,6 +23033,9 @@ Hint levels:
                     document.getElementById('hint-result').style.display = 'block';
                     document.getElementById('hint-get-btn').style.display = 'none';
                     
+                    // v1.2.75: Play hint received sound
+                    playSound('hint');
+                    
                     // Show usage info if available
                     if (result.data.usage) {
                         const usage = result.data.usage;
@@ -22986,8 +23081,9 @@ Hint levels:
             
             // Handle specific error types
             let errorMsg = 'Failed to get hint. Please try again.';
+            let isSignInError = false;
             if (lastError?.code === 'unauthenticated') {
-                errorMsg = 'Please sign in to use AI hints.';
+                isSignInError = true;
             } else if (lastError?.code === 'resource-exhausted') {
                 errorMsg = lastError.message || 'Rate limit reached. Try again later.';
             } else if (lastError?.code === 'failed-precondition') {
@@ -22996,7 +23092,11 @@ Hint levels:
                 errorMsg = lastError.message;
             }
             
-            document.getElementById('hint-error').textContent = errorMsg;
+            if (isSignInError) {
+                document.getElementById('hint-error').innerHTML = '🔐 <a href="#" onclick="closeHintSheet(); signInWithGoogle(); return false;" style="color: var(--accent-purple);">Sign in</a> to use AI hints.';
+            } else {
+                document.getElementById('hint-error').textContent = errorMsg;
+            }
             document.getElementById('hint-error').style.display = 'block';
             
             hintLoading = false;
@@ -24343,8 +24443,14 @@ Hint levels:
                         // On iOS, user already saw paste popup, don't trigger another with readText
                         if (isIOS) {
                             console.log('clipboard.read() failed on iOS, not retrying:', readErr.message);
-                            showToast('📋 Could not read clipboard', 'error');
-                            setTimeout(() => openLogSheet(), 800);
+                            // v1.2.75: Don't show error toast - clipboard often succeeds via other paths
+                            // Just silently open log sheet after delay (user can manual log if needed)
+                            setTimeout(() => {
+                                // Only open log sheet if game wasn't already logged
+                                if (!getTodayHistory()[lastLaunchedGame]) {
+                                    openLogSheet();
+                                }
+                            }, 800);
                             return;
                         }
                         console.log('clipboard.read() failed, trying readText:', readErr.message);
@@ -24821,17 +24927,35 @@ Hint levels:
         
         // Long-press handler for manual entry fallback
         let recordButtonTimer = null;
-        function handleRecordButtonDown() {
+        let recordButtonHandled = false; // v1.2.75: Prevent double execution from touch+mouse
+        
+        function handleRecordButtonDown(e) {
+            // v1.2.75: Prevent mouse events after touch events
+            if (e && e.type === 'mousedown' && recordButtonHandled) {
+                return;
+            }
+            
             recordButtonTimer = setTimeout(() => {
                 openLogSheet();
                 recordButtonTimer = null;
+                recordButtonHandled = false;
             }, 600);
         }
-        function handleRecordButtonUp() {
+        function handleRecordButtonUp(e) {
+            // v1.2.75: Prevent mouse events after touch events  
+            if (e && e.type === 'mouseup' && recordButtonHandled) {
+                recordButtonHandled = false; // Reset for next interaction
+                return;
+            }
+            
             if (recordButtonTimer) {
                 clearTimeout(recordButtonTimer);
                 recordButtonTimer = null;
+                recordButtonHandled = true; // Mark as handled
                 handleRecordGame();
+                
+                // v1.2.75: Reset after a delay to allow for next tap
+                setTimeout(() => { recordButtonHandled = false; }, 500);
             }
         }
         
@@ -28905,6 +29029,29 @@ Hint levels:
             if (volumeSlider) {
                 volumeSlider.value = SoundManager.volume * 100;
             }
+            
+            // v1.2.75: Fix iOS sound - AudioContext must be resumed within a user gesture
+            // Add one-time listener to ensure AudioContext is ready on first interaction
+            const initAudioOnGesture = async () => {
+                // Initialize if not already done
+                if (!SoundManager.ctx) {
+                    SoundManager.init();
+                }
+                // Resume if suspended
+                if (SoundManager.ctx && SoundManager.ctx.state === 'suspended') {
+                    try {
+                        await SoundManager.ctx.resume();
+                        console.log('🔊 AudioContext resumed on gesture, state:', SoundManager.ctx.state);
+                    } catch (e) {
+                        console.log('🔊 AudioContext resume on gesture failed:', e);
+                    }
+                }
+                // Remove listeners after first interaction
+                document.removeEventListener('touchstart', initAudioOnGesture);
+                document.removeEventListener('click', initAudioOnGesture);
+            };
+            document.addEventListener('touchstart', initAudioOnGesture, { once: true });
+            document.addEventListener('click', initAudioOnGesture, { once: true });
             
             // Load activity summary setting
             const summaryToggle = document.getElementById('activity-summary-toggle');
