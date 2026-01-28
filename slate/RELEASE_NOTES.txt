@@ -1,3 +1,29 @@
+Slate v1.0.16
+=============
+Release Date: January 28, 2026
+
+BUG FIX
+-------
+- Fixed wrong word clearing after game ends
+  - When a wrong guess pushes score over 50, game ends and fills in answers
+  - Previously, the 800ms "clear wrong word" timeout would run AFTER
+    game end, wiping out the revealed answer on the row being edited
+  - Now skips clearing if gameOver is already true
+
+---
+
+Slate v1.0.15
+=============
+Release Date: January 28, 2026
+
+PWA CHANGES
+-----------
+- Removed PWA install banner prompt
+  - PWA infrastructure retained for offline/caching
+  - Users can still install via browser menu if desired
+
+---
+
 Slate v1.0.14
 =============
 Release Date: January 28, 2026
