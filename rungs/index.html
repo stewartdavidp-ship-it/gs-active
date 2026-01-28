@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="version" content="1.0.14">
+    <meta name="version" content="1.0.15">
     <title>Rungs - Daily Puzzle</title>
     
     <!-- PWA Support -->
@@ -2193,7 +2193,7 @@
         // ============ GAME SHELF INTEGRATION MODULE v1.0.9 ============
         (function() {
             'use strict';
-            const GAMESHELF_VERSION = '1.0.14';
+            const GAMESHELF_VERSION = '1.0.15';
             if (window.GameShelfIntegration) return;
             
             window.GameShelfIntegration = {
@@ -2209,7 +2209,7 @@
                         name: config.name || gameId,
                         icon: config.icon || '🎮',
                         url: config.url || window.location.hostname,
-                        version: config.version || '1.0.14',
+                        version: config.version || '1.0.15',
                         type: config.type || 'daily',
                         ...config
                     };
@@ -2291,7 +2291,7 @@
         // ============ END GAME SHELF INTEGRATION ============
 
         // ============ CONFIGURATION ============
-        const VERSION = '1.0.14';
+        const VERSION = '1.0.15';
         const GAME_URL = 'https://rfrbrn.github.io/rungs/rungs.html'; // Update this when hosted
         const DEBUG_MODE = false; // Set to true to show test mode in menu
         
@@ -3691,7 +3691,7 @@
                 playIncorrectSound();
                 soundEnabled = wasEnabled;
                 
-                // v1.0.14: Show mute reminder (browsers can't detect hardware mute)
+                // v1.0.15: Show mute reminder (browsers can't detect hardware mute)
                 setTimeout(() => {
                     showMessage('🔇 No sound? Check if your device is muted', 'info');
                 }, 400);
@@ -4484,7 +4484,7 @@
             const modal = document.getElementById('result-modal');
             const content = document.getElementById('result-content');
             
-            // v1.0.14: Handle case where we know user played but result is missing
+            // v1.0.15: Handle case where we know user played but result is missing
             if (!result) {
                 content.innerHTML = `
                     <button class="modal-close-btn" onclick="closeResultModal()">&times;</button>
@@ -5512,24 +5512,6 @@ rungs.game`;
                     }).catch((e) => console.log('[Rungs] SW failed:', e));
             });
         }
-        let deferredInstallPrompt = null;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredInstallPrompt = e;
-            if (!window.matchMedia('(display-mode: standalone)').matches && !sessionStorage.getItem('rungs_prompted')) {
-                const b = document.createElement('div');
-                b.id = 'pwa-install-banner';
-                b.innerHTML = `<div style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#2d2535,#1a1520);color:#e8e0f0;padding:12px 20px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;gap:12px;z-index:9999;max-width:90%;border:2px solid #ffd369;">
-                    <span style="font-size:1.5rem;">🪜</span>
-                    <div style="flex:1;"><div style="font-weight:600;">Install Rungs</div><div style="font-size:0.85rem;opacity:0.9;">Add to home screen</div></div>
-                    <button onclick="installPWA()" style="background:#ffd369;color:#1a1520;border:none;padding:8px 16px;border-radius:8px;font-weight:600;cursor:pointer;">Install</button>
-                    <button onclick="dismissInstall()" style="background:transparent;border:none;color:#e8e0f0;font-size:1.2rem;cursor:pointer;opacity:0.7;">✕</button>
-                </div>`;
-                document.body.appendChild(b);
-            }
-        });
-        function installPWA() { if (deferredInstallPrompt) { deferredInstallPrompt.prompt(); deferredInstallPrompt.userChoice.then(() => { deferredInstallPrompt = null; dismissInstall(); }); } }
-        function dismissInstall() { const b = document.getElementById('pwa-install-banner'); if (b) b.remove(); sessionStorage.setItem('rungs_prompted', 'true'); }
     </script>
 </body>
 </html>
