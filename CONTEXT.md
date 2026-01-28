@@ -1,7 +1,7 @@
 # Game Shelf Ecosystem - Active Development Context
 
-**Archive Date:** January 28, 2026 (State persistence fixes)  
-**Archive Version:** gs-active-2026-01-28-state-fixes
+**Archive Date:** January 28, 2026 (Hint caching & Haiku switch)  
+**Archive Version:** gs-active-2026-01-28-hint-caching
 
 ---
 
@@ -758,3 +758,57 @@ Added "← Game Shelf" back button to all four GS original games:
 - **Word Boxing**: Added fixed position top-right (gold accent style)
 
 All buttons link to https://gameshelf.co/ and show abbreviated text on narrow screens.
+
+---
+
+## Session: January 28, 2026 (Evening) - Hint System Performance Fixes
+
+### Problem
+Users were seeing "AI is busy" errors when requesting hints. The 429 status code indicated API rate limits were being exceeded.
+
+### Root Cause
+- Using Sonnet model which has lower rate limits (30K tokens/min)
+- Every hint request hit the API, even for the same puzzle
+
+### Solution: Hint Caching + Model Switch
+
+**1. Switched to Haiku Model**
+- Changed from `claude-sonnet-4-20250514` to `claude-haiku-4-5-20251001`
+- Haiku has 50K tokens/min vs Sonnet's 30K
+- Faster response times for simple hint generation
+
+**2. Added Hint Caching**
+- Same hint now serves all users for the same puzzle/level
+- Cache structure: `hint-cache/{date}/{gameId}/{level}`
+- Dramatically reduces API calls (first user generates, rest get cached)
+
+**3. Pre-fetch Support**
+- Games supporting pre-fetch: Connections, Wordle, Strands
+- When first hint requested, can pre-generate all 7 levels
+- Ensures cache is warm for subsequent users
+
+**4. Cache Cleanup**
+- Scheduled function runs at 3am ET daily
+- Keeps today + yesterday, deletes older entries
+- Manual cleanup endpoint for testing
+
+### Firebase Structure (New)
+```
+hint-cache/
+  {YYYY-MM-DD}/
+    {gameId}/
+      {level}/
+        hint: "The hint text..."
+        cachedAt: timestamp
+
+hint-analytics/
+  {pushId}/
+    userId, gameId, level, success, fromCache, timestamp
+```
+
+### Files Updated
+- `firebase-functions/functions/index.js` - Complete rewrite with caching
+- `CONTEXT.md` - This documentation
+
+### Deployment
+Upload index.js to Command Center → GitHub Actions auto-deploys to Firebase Functions.
