@@ -1,7 +1,7 @@
 # Game Shelf Ecosystem - Active Development Context
 
-**Archive Date:** January 28, 2026 (Hint caching & Haiku switch)  
-**Archive Version:** gs-active-2026-01-28-hint-caching
+**Archive Date:** January 28, 2026 (Beta Hub F&F revision)  
+**Archive Version:** gs-active-2026-01-28-beta-hub-ff
 
 ---
 
@@ -17,7 +17,7 @@
 | Command Center | 8.2.7 | Fixed deploy button state bug |
 | Test Plan | 4.0.1 | Added version meta tag |
 | Landing Page | 1.1.0 | Marketing page |
-| Beta Hub | 2.0.0 | Beta program signup and beta user portal |
+| Beta Hub | 2.1.7.3 | F&F focused, personal banner, real screenshots, support@gameshelf.co |
 
 ---
 
@@ -875,8 +875,76 @@ Updated to use server-side registration:
 - "Complete Beta Registration" button
 - Calls Cloud Function (not direct writes)
 
+### Beta Hub v2.1.5.x - v2.1.6.5 (2026-01-28)
+
+Major onboarding and survey redesign:
+
+**v2.1.5.3-5.8: Leaderboard removal, Welcome section, 5-step onboarding**
+- Removed leaderboard (Firebase permissions issues)
+- Added beta day counter to welcome section
+- Replaced simple registration with 5-step questionnaire
+
+**v2.1.6.0-6.1: Expanded to 9-step onboarding with "Other" capture**
+- Step 1: How did you find Game Shelf? (with Other text)
+- Step 2: How long playing daily puzzles?
+- Step 3: What puzzles do you play? (with Other text)
+- Step 4: How many puzzles per day?
+- Step 5: Primary device?
+- Step 6: Do you share + where? (with Other text)
+- Step 7: Look up hints?
+- Step 8: Do you compete?
+- Step 9: Biggest frustration? (with Other text)
+
+**v2.1.6.2: Survey modal**
+- Moved daily rating from inline to popup modal
+- Shows on dashboard visit (day 2+, once per session, if not rated)
+- "Maybe later" skip option
+
+**v2.1.6.3-6.4: TEST_MODE flag**
+- `const TEST_MODE = true` at top of script
+- When true: Always shows onboarding + survey (for testing)
+- When false: Normal production flow
+- Removed welcome modal popup (redundant with welcome card)
+
+**v2.1.6.7: Fixed journal - multiple entries allowed**
+- Changed journal key from date to timestamp (entry_1738079584616)
+- Now allows multiple entries per day
+- Shows date AND time for each entry
+- Sorted by timestamp, newest first
+
+**v2.1.6.6: Journal shows all entries**
+- Removed 10-entry limit on journal
+- Shows full running list, most recent at top
+
+**v2.1.6.5: TEST_MODE survey bypass**
+- TEST_MODE now also bypasses all survey checks
+- Survey shows every visit in test mode
+
+**Firebase Data Structure** (`users/{uid}/earlyAccess/onboarding`):
+```json
+{
+  "source": "friend",
+  "sourceOther": "...",
+  "experience": "years",
+  "games": ["wordle", "connections"],
+  "gamesOther": "...",
+  "frequency": "4-5",
+  "device": "iphone",
+  "sharing": "sometimes",
+  "shareWhere": ["imessage"],
+  "shareWhereOther": "...",
+  "hints": "rarely",
+  "compete": "yes-casual",
+  "frustration": "no-tracking",
+  "frustrationOther": "...",
+  "completedAt": 1738079584616
+}
+```
+
+**Before deploying to production:** Change `TEST_MODE = false`
+
 ### Files Updated
-- `beta/index.html` - v2.1.3 (server-side registration)
+- `beta/index.html` - v2.1.6.5 (server-side registration)
 - `firebase-functions/functions/index.js` - Added 3 new functions
 - `CONTEXT.md` - This documentation
 
@@ -884,3 +952,63 @@ Updated to use server-side registration:
 - Existing users with `earlyAccess.joinedAt` → treated as `beta` (auto-migrated on next action)
 - New users → `pending` until they complete registration
 - No batch migration script needed - happens on-demand
+
+---
+
+## Session: January 28, 2026 (Night) - Beta Hub F&F Revision
+
+### Context
+Pivoted Beta Hub from public marketing page to friends-and-family (F&F) focused experience. Original design assumed public launch but user clarified it's for ~20-30 invited people.
+
+### UX Review Findings
+
+**Original Issues (public launch assumptions):**
+- 9-question onboarding felt too long
+- Daily survey seemed intrusive
+- "What We Ask" read like homework
+- Language was generic marketing speak
+
+**Revised Approach (F&F context):**
+- 9 questions appropriate for invested participants
+- Personal warmth + Professional credibility ("Dave invited me" + "Holy crap, this is real")
+- Cut sections that don't serve F&F audience
+
+### Changes in v2.1.7.0-2.1.7.3
+
+**Added:**
+- Personal founder's banner: "You're part of a select group I'm sharing this with..."
+- "Dave told me about it" option in source question
+- Open-ended gold question: "What would make you use Game Shelf every day?"
+- First-person language throughout
+
+**Removed:**
+- Features grid section (they'll discover)
+- Detailed games category breakdown
+- "How It Works" 3-step section
+- Share buttons at final CTA
+
+**Refined:**
+- "Join the Beta" → "Get Started" / "Let's Go"
+- "Be part of shaping the future..." → "Your feedback will directly shape what this becomes"
+- "This is day 1 of you being in the beta" → "Day 1 of your beta access"
+- Email changed to support@gameshelf.co
+
+**Technical:**
+- Added real app screenshots (app-screenshot.png, hints-screenshot.png)
+- Screenshots stored in beta/landing/ folder
+- TEST_MODE = false for production
+
+### File Structure
+```
+beta/
+├── index.html           (v2.1.7.3)
+├── landing/
+│   ├── app-screenshot.png
+│   └── hints-screenshot.png
+└── README.md
+```
+
+### Email Setup (Porkbun)
+- Hosted email: davestewart@gameshelf.co ($24/yr)
+- Free forwards: support@, help@, info@ → davestewart@
+- Apple Mail configured with IMAP (imap.porkbun.com) and SMTP (smtp.porkbun.com:587)
