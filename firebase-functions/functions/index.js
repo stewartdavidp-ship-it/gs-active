@@ -898,6 +898,213 @@ exports.setUserType = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('permission-denied', 'Admin access required');
 });
 
+// ============ AI HELP FUNCTION ============
+
+/**
+ * AI Help Rate Limiting (separate from hints)
+ * More generous since help doesn't spoil puzzles
+ */
+const AI_HELP_RATE_LIMIT = {
+    maxRequestsPerDay: 20
+};
+
+/**
+ * Check AI Help rate limits
+ */
+async function checkAIHelpRateLimit(userId) {
+    const now = Date.now();
+    const dayAgo = now - (24 * 60 * 60 * 1000);
+    
+    const userRef = db.ref(`ai-help-usage/${userId}`);
+    const snapshot = await userRef.once('value');
+    const usage = snapshot.val() || { requests: [] };
+    
+    // Clean old entries
+    const requests = (usage.requests || []).filter(t => t > dayAgo);
+    
+    if (requests.length >= AI_HELP_RATE_LIMIT.maxRequestsPerDay) {
+        return { allowed: false, reason: 'daily_limit' };
+    }
+    
+    return { allowed: true, dayCount: requests.length };
+}
+
+/**
+ * Record AI Help usage
+ */
+async function recordAIHelpUsage(userId) {
+    const userRef = db.ref(`ai-help-usage/${userId}/requests`);
+    const now = Date.now();
+    const dayAgo = now - (24 * 60 * 60 * 1000);
+    
+    const snapshot = await userRef.once('value');
+    const requests = (snapshot.val() || []).filter(t => t > dayAgo);
+    requests.push(now);
+    await userRef.set(requests);
+}
+
+/**
+ * AI Help System Prompt
+ */
+const AI_HELP_SYSTEM_PROMPT = `You are the Game Shelf Help Assistant. Game Shelf is a free app that tracks daily puzzle game results (Wordle, Connections, etc.) in one place.
+
+CORE FEATURES:
+- Track 34+ games: NYT (Wordle, Connections, Strands, Mini), LinkedIn (Queens, Tango), Geography (Worldle, Globle), Game Shelf Originals (Quotle, Slate, Rungs)
+- Record games by copying share text from the game and tapping "Record Game"
+- Manual entry: Long-press Record Game button
+- Streaks: Consecutive days playing same game. Miss a day = reset to 0. Each game has its own streak.
+- AI Hints: 5 tokens each, levels 1-10. Tap the lightbulb icon. Requires sign-in.
+- Battles: Multi-day competitions. Create via Hub → Battles. Types: Total Score, Most Wins, Perfect Hunter, Streak Challenge.
+- Friends: Add via 8-character friend code in Hub → Friends.
+- Tokens: Free currency earned through daily play, streaks, referrals. New users get 50.
+- Coins: Purchased currency for premium rewards.
+
+COMMON ISSUES:
+- Clipboard not working (iOS): Tap "Allow" when iOS asks for paste permission.
+- Streak didn't update: Check History to confirm game recorded. Timezone issues near midnight.
+- Game not recognized: Use original share text format. Don't add extra text.
+- Data not syncing: Sign out and back in. Check network.
+
+YOUR ROLE:
+- Be concise and friendly (2-4 sentences typical)
+- Reference specific UI elements (e.g., "tap the Games tab", "go to Hub → Battles")
+- If unsure, say so honestly
+- Don't make up features
+- For puzzle hints/answers, tell them to use the Hints feature (💡 button)
+- For bugs, suggest Send Feedback in Help menu`;
+
+/**
+ * getAIHelp - AI-powered help for Game Shelf questions
+ */
+exports.getAIHelp = functions.https.onCall(async (data, context) => {
+    // 1. Verify authentication
+    if (!context.auth) {
+        throw new functions.https.HttpsError(
+            'unauthenticated',
+            'You must be signed in to use AI Help.'
+        );
+    }
+    
+    const userId = context.auth.uid;
+    
+    // 2. Validate input
+    const { question, hybridContext } = data;
+    
+    if (!question || question.trim().length === 0) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            'Please enter a question.'
+        );
+    }
+    
+    if (question.length > 500) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            'Question is too long. Please keep it under 500 characters.'
+        );
+    }
+    
+    // 3. Check rate limits
+    const rateCheck = await checkAIHelpRateLimit(userId);
+    if (!rateCheck.allowed) {
+        throw new functions.https.HttpsError(
+            'resource-exhausted',
+            'Daily help limit reached (20/day). Try again tomorrow.'
+        );
+    }
+    
+    // 4. Get API key
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        console.error('Anthropic API key not configured');
+        throw new functions.https.HttpsError(
+            'failed-precondition',
+            'AI Help is not configured. Please contact support.'
+        );
+    }
+    
+    // 5. Build the user prompt with hybrid context
+    let userPrompt = question;
+    
+    if (hybridContext) {
+        const contextParts = [];
+        if (hybridContext.searchQuery) {
+            contextParts.push(`User searched FAQ for: "${hybridContext.searchQuery}"`);
+        }
+        if (hybridContext.viewedFaqs && hybridContext.viewedFaqs.length > 0) {
+            contextParts.push(`User viewed these FAQs: ${hybridContext.viewedFaqs.join(', ')}`);
+        }
+        if (contextParts.length > 0) {
+            userPrompt = `[Context: ${contextParts.join('. ')}]\n\nQuestion: ${question}`;
+        }
+    }
+    
+    // 6. Call Claude API
+    try {
+        console.log(`AI Help request from ${userId}: "${question.substring(0, 50)}..."`);
+        
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: AI_MODEL,
+                max_tokens: 400,
+                system: AI_HELP_SYSTEM_PROMPT,
+                messages: [{ role: 'user', content: userPrompt }]
+            })
+        });
+        
+        if (!response.ok) {
+            const error = await response.text();
+            console.error('Anthropic API error:', response.status, error);
+            
+            if (response.status === 429) {
+                throw new Error('AI is busy. Please try again in a moment.');
+            }
+            throw new Error('Failed to get help. Please try again.');
+        }
+        
+        const result = await response.json();
+        const answer = result.content
+            ?.filter(block => block.type === 'text')
+            ?.map(block => block.text)
+            ?.join('\n') || 'Sorry, I couldn\'t generate a response.';
+        
+        // 7. Record usage
+        await recordAIHelpUsage(userId);
+        
+        // 8. Track analytics
+        try {
+            await db.ref('ai-help-analytics').push({
+                userId: userId,
+                question: question.substring(0, 200),
+                searchQuery: hybridContext?.searchQuery || null,
+                responseLength: answer.length,
+                timestamp: admin.database.ServerValue.TIMESTAMP
+            });
+        } catch (e) {
+            console.warn('AI Help analytics tracking failed:', e);
+        }
+        
+        // 9. Return response
+        return {
+            answer: answer,
+            remaining: AI_HELP_RATE_LIMIT.maxRequestsPerDay - rateCheck.dayCount - 1
+        };
+        
+    } catch (error) {
+        console.error('AI Help error:', error.message);
+        throw new functions.https.HttpsError(
+            'internal',
+            error.message || 'Failed to get help. Please try again.'
+        );
+    }
+});
+
 // ============ BATTLE SCORING ============
 
 /**
