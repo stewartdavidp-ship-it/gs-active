@@ -10,11 +10,11 @@
 | App | Version | Key Features |
 |-----|---------|--------------|
 | Game Shelf | 1.2.75 | Sound enhancements (hint, wallet), timezone fix |
-| Quotle | 1.2.5 | Touch/tap fixes, state persistence, mute reminder |
-| Rungs | 1.0.14 | State persistence fix, back button, mute reminder |
-| Slate | 1.0.14 | Back button, mute reminder |
-| Word Boxing | 1.0.9 | Back button, test sounds with mute reminder |
-| Command Center | 8.2.7 | Fixed deploy button state bug |
+| Quotle | 1.2.6 | Removed PWA install banner |
+| Rungs | 1.0.15 | Removed PWA install banner |
+| Slate | 1.0.16 | Removed PWA install banner, wrong word clear fix |
+| Word Boxing | 1.0.10 | Removed PWA install banner |
+| Command Center | 8.2.13 | App categories, local file warning, full features |
 | Test Plan | 4.0.1 | Added version meta tag |
 | Landing Page | 1.1.0 | Marketing page |
 | Beta Hub | 2.1.7.3 | F&F focused, personal banner, real screenshots, support@gameshelf.co |
