@@ -12,6 +12,8 @@
  * - completeBetaRegistration: Server-side beta signup
  * - getUserType: Get user's type for routing
  * - setUserType: Admin placeholder
+ * - calculateBattleScore: Server-side battle scoring (DB trigger)
+ * - checkBattleCompletion: Hourly auto-complete expired battles
  * 
  * SETUP:
  * 1. Set the Anthropic API key:
@@ -895,3 +897,194 @@ exports.setUserType = functions.https.onCall(async (data, context) => {
     // This is a placeholder for future admin functionality
     throw new functions.https.HttpsError('permission-denied', 'Admin access required');
 });
+
+// ============ BATTLE SCORING ============
+
+/**
+ * Battle type scoring configurations
+ * Mirrors client-side BATTLE_TYPES but authoritative
+ */
+const BATTLE_SCORING = {
+    'total-score': {
+        name: 'Total Score',
+        // Sum all raw scores
+        calculate: (dailyScores, dailyMeta, battleGames, battleDuration) => {
+            return Object.values(dailyScores || {})
+                .reduce((sum, s) => sum + (parseInt(s) || 0), 0);
+        }
+    },
+    'wins': {
+        name: 'Most Wins',
+        // Count games won (1 point per win)
+        calculate: (dailyScores, dailyMeta, battleGames, battleDuration) => {
+            return Object.values(dailyMeta || {})
+                .filter(m => m?.won === true).length;
+        }
+    },
+    'perfect': {
+        name: 'Perfect Hunter',
+        // Count perfect scores (1 point per perfect)
+        calculate: (dailyScores, dailyMeta, battleGames, battleDuration) => {
+            return Object.values(dailyMeta || {})
+                .filter(m => m?.perfect === true).length;
+        }
+    },
+    'streak': {
+        name: 'Streak Challenge',
+        // Raw scores + bonus for each day ALL games played
+        calculate: (dailyScores, dailyMeta, battleGames, battleDuration) => {
+            const rawScore = Object.values(dailyScores || {})
+                .reduce((sum, s) => sum + (parseInt(s) || 0), 0);
+            
+            // Calculate streak bonus
+            // Group scores by date
+            const scoresByDate = {};
+            for (const key of Object.keys(dailyScores || {})) {
+                const [date, gameId] = key.split('_');
+                if (!scoresByDate[date]) scoresByDate[date] = new Set();
+                scoresByDate[date].add(gameId);
+            }
+            
+            // Count days where ALL battle games were played
+            let completeDays = 0;
+            for (const [date, gamesPlayed] of Object.entries(scoresByDate)) {
+                const allGamesPlayed = battleGames.every(g => gamesPlayed.has(g));
+                if (allGamesPlayed) completeDays++;
+            }
+            
+            // Bonus: 10 points per complete day
+            const streakBonus = completeDays * 10;
+            
+            return rawScore + streakBonus;
+        }
+    }
+};
+
+/**
+ * Firebase trigger: Recalculate battle score when participant data changes
+ * 
+ * Triggers on any write to participant's dailyScores or dailyMeta
+ * Recalculates score based on battle type (authoritative server-side scoring)
+ */
+exports.calculateBattleScore = functions.database
+    .ref('battles/{battleId}/participants/{odataId}')
+    .onWrite(async (change, context) => {
+        const { battleId, odataId } = context.params;
+        
+        // If participant was deleted, nothing to do
+        if (!change.after.exists()) {
+            console.log(`Participant ${odataId} removed from battle ${battleId}`);
+            return null;
+        }
+        
+        const participant = change.after.val();
+        const previousParticipant = change.before.val() || {};
+        
+        // Check if dailyScores or dailyMeta actually changed
+        const scoresChanged = JSON.stringify(participant.dailyScores) !== JSON.stringify(previousParticipant.dailyScores);
+        const metaChanged = JSON.stringify(participant.dailyMeta) !== JSON.stringify(previousParticipant.dailyMeta);
+        
+        if (!scoresChanged && !metaChanged) {
+            // No score data changed, skip recalculation
+            return null;
+        }
+        
+        // Get battle details
+        const battleSnapshot = await db.ref(`battles/${battleId}`).once('value');
+        const battle = battleSnapshot.val();
+        
+        if (!battle) {
+            console.error(`Battle ${battleId} not found`);
+            return null;
+        }
+        
+        // Skip if battle is completed
+        if (battle.status === 'completed') {
+            console.log(`Battle ${battleId} already completed, skipping score update`);
+            return null;
+        }
+        
+        const battleType = battle.type || 'total-score';
+        const battleGames = battle.games || [];
+        const battleDuration = battle.duration || 3;
+        
+        // Get scoring function
+        const scoring = BATTLE_SCORING[battleType] || BATTLE_SCORING['total-score'];
+        
+        // Calculate new score
+        const newScore = scoring.calculate(
+            participant.dailyScores,
+            participant.dailyMeta,
+            battleGames,
+            battleDuration
+        );
+        
+        // Only update if score actually changed
+        if (newScore !== participant.score) {
+            console.log(`Battle ${battleId}: Updating ${odataId} score from ${participant.score} to ${newScore} (type: ${battleType})`);
+            
+            await change.after.ref.child('score').set(newScore);
+            
+            // Also update daysPlayed while we're here
+            const uniqueDays = new Set(
+                Object.keys(participant.dailyScores || {}).map(key => key.split('_')[0])
+            );
+            await change.after.ref.child('daysPlayed').set(uniqueDays.size);
+        }
+        
+        return null;
+    });
+
+/**
+ * Firebase trigger: Auto-complete battles when end date passes
+ * Runs every hour to check for battles that need completion
+ * 
+ * Note: This is a backup - client also triggers completion on load
+ */
+exports.checkBattleCompletion = functions.pubsub
+    .schedule('every 1 hours')
+    .onRun(async (context) => {
+        const now = Date.now();
+        
+        // Get all active battles
+        const battlesSnapshot = await db.ref('battles')
+            .orderByChild('status')
+            .equalTo('active')
+            .once('value');
+        
+        const battles = battlesSnapshot.val() || {};
+        let completedCount = 0;
+        
+        for (const [battleId, battle] of Object.entries(battles)) {
+            if (battle.endDate && battle.endDate < now) {
+                console.log(`Auto-completing battle ${battleId} (ended ${new Date(battle.endDate).toISOString()})`);
+                
+                // Mark as completed
+                await db.ref(`battles/${battleId}/status`).set('completed');
+                await db.ref(`battles/${battleId}/completedAt`).set(now);
+                
+                // Determine winner
+                const participants = Object.entries(battle.participants || {})
+                    .map(([uid, data]) => ({ odataId: uid, ...data }))
+                    .sort((a, b) => (b.score || 0) - (a.score || 0));
+                
+                if (participants.length > 1) {
+                    const winner = participants[0];
+                    await db.ref(`battles/${battleId}/winner`).set({
+                        odataId: winner.odataId,
+                        displayName: winner.displayName,
+                        score: winner.score
+                    });
+                }
+                
+                // Note: Prize distribution handled client-side when user views results
+                // This ensures user's wallet is updated in their local storage
+                
+                completedCount++;
+            }
+        }
+        
+        console.log(`Battle completion check: ${completedCount} battles auto-completed`);
+        return null;
+    });
+
