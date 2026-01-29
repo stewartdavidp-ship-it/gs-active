@@ -1,7 +1,7 @@
 # Game Shelf Ecosystem - Active Development Context
 
-**Archive Date:** January 29, 2026 (AI Help System)  
-**Archive Version:** gs-active-2026-01-29-ai-help
+**Archive Date:** January 29, 2026 (Multi-Turn AI Help)  
+**Archive Version:** gs-active-2026-01-29-multiturn-help
 
 ---
 
@@ -9,7 +9,7 @@
 
 | App | Version | Key Features |
 |-----|---------|--------------|
-| Game Shelf | 1.3.4 | AI Help assistant with hybrid context |
+| Game Shelf | 1.3.18 | Multi-turn AI Help conversations |
 | Quotle | 1.2.6 | Removed PWA install banner |
 | Rungs | 1.0.15 | Removed PWA install banner |
 | Slate | 1.0.16 | Removed PWA install banner, wrong word clear fix |
@@ -18,6 +18,248 @@
 | Test Plan | 4.0.1 | Added version meta tag |
 | Landing Page | 1.1.0 | Marketing page |
 | Beta Hub | 2.1.7.3 | F&F focused, personal banner, real screenshots, support@gameshelf.co |
+
+---
+
+## Game Shelf v1.3.18 - Multi-Turn AI Help
+
+**Release Date:** January 29, 2026
+
+### Overview
+AI Help now supports conversational follow-up questions. Users pay 5 tokens for their first question, then get up to 3 free follow-ups to drill down or clarify.
+
+### User Experience
+- First question: 5 tokens (same as before)
+- Follow-ups: FREE (up to 3)
+- Conversation displayed as chat thread
+- User messages: Purple bubbles (right side)
+- AI messages: Gray bubbles (left side)
+- "New question" button resets and costs 5 tokens
+
+### Technical Implementation
+- Client tracks `aiHelpConversation` array and `aiHelpTurnCount`
+- Messages array sent to Firebase function
+- Context only added to first message (reduces token usage on follow-ups)
+- Each API call counts toward daily limit (20/day)
+- Analytics tracks `isFollowup` and `turnCount`
+
+### Files Modified
+- `gameshelf/index.html` - Conversation UI, CSS, JS
+- `gameshelf/sw.js` - CACHE_VERSION to v1.3.18
+- `gameshelf/RELEASE_NOTES.txt` - Added v1.3.18 notes
+- `firebase-functions/functions/index.js` - Multi-turn support in getAIHelp
+
+### Cost Analysis (Haiku 4.5)
+| Turn | Approx Input | Approx Cost |
+|------|--------------|-------------|
+| 1 | 1,100 tokens | ~$0.003 |
+| 2 | 1,500 tokens | ~$0.004 |
+| 3 | 2,000 tokens | ~$0.005 |
+| 4 | 2,500 tokens | ~$0.006 |
+| **4-turn session** | | **~$0.018** |
+
+---
+
+## Game Shelf v1.3.17 - AI Help Improvements
+
+**Release Date:** January 29, 2026
+
+### Feedback Collection
+- 👍/👎 buttons appear after AI response
+- Optional comment field on negative feedback (👎)
+- Feedback stored in Firebase: `ai-help-feedback/{pushId}`
+- Data: odometerId, question, response (truncated), rating, comment, timestamp
+
+### Enhanced AI Context
+Client now passes to AI:
+- `currentTab` / `currentSubtab` - where user is in the app
+- `shelfGames` - list of user's tracked games
+- `tokenBalance` - current token count
+- `relevantFaqs` - RAG-lite: top 3 matching FAQ Q&As
+
+### Improved System Prompt
+- Added few-shot examples for common questions
+- Better handling of vague questions (asks for clarification)
+- Updated navigation to include all subtabs (Games, Stats, Share)
+- Reduced step counts for cleaner responses
+
+### Files Modified
+- `gameshelf/index.html` - Feedback UI, context gathering, RAG-lite
+- `gameshelf/sw.js` - CACHE_VERSION to v1.3.17
+- `gameshelf/RELEASE_NOTES.txt` - Added v1.3.17 notes
+- `firebase-functions/functions/index.js` - Enhanced prompt, context handling
+
+### Deployment Steps
+1. Upload `index.js` to Command Center (GitHub Actions auto-deploys)
+2. Deploy `gameshelf-deploy-v1_3_17.zip` to production
+
+---
+
+## Game Shelf v1.3.16 - Unified Subtab UX
+
+**Release Date:** January 29, 2026
+
+### Overview
+Added consistent subtab navigation to Games, Stats, and Share tabs to match the existing Battles tab pattern. This creates a unified UX where all main tabs have the same interaction model.
+
+### Tab Structure
+
+| Tab | Subtabs |
+|-----|---------|
+| **Home** | *(no subtabs - dashboard view)* |
+| **Games** | 📚 Shelf · 🔍 Discover |
+| **Stats** | 📊 Overview · 🎮 By Game |
+| **Battles** | ⚔️ Battles · 👥 Friends · 📰 Activity *(existing)* |
+| **Share** | 📅 Today · ✏️ Compose · 📜 History |
+
+### Games Tab Subtabs
+- **Shelf**: Your games + Recommendations + Long-press hint
+- **Discover**: Search bar + Browse by Category + Suggest a Game
+
+### Stats Tab Subtabs
+- **Overview**: Summary cards (Total Games, Streaks, Best/Worst, etc.)
+- **By Game**: Per-game expandable stats + Import Stats button
+
+### Share Tab Subtabs
+- **Today**: Quick share today's results + Weekly recap button + Friend recommendations
+- **Compose**: Full message composer + Templates + Emoji bar + All platform buttons
+- **History**: Past shares list (now dedicated tab, not hidden collapsible)
+
+### Benefits
+- **Consistency**: Same interaction model across all tabs
+- **Less scrolling**: Content segmented into focused views
+- **Discoverability**: Features easier to find
+- **Cleaner first impression**: Each subtab shows just what's relevant
+
+### Technical Implementation
+- New CSS class `.subtab-container`, `.subtab-btn`, `.subtab-content`
+- New JS functions: `switchGamesTab()`, `switchStatsTab()`, `switchShareTab()`
+- Updated `renderShareHistory()` to work with subtab layout
+- Updated `useShareFromHistory()` to switch to Compose tab
+
+### Files Modified
+- `gameshelf/index.html` - CSS, HTML structure, JS functions
+- `gameshelf/sw.js` - CACHE_VERSION to v1.3.16
+- `gameshelf/RELEASE_NOTES.txt` - Added v1.3.16 notes
+
+---
+
+## Game Shelf v1.3.15 - Menu UX Polish
+
+**Release Date:** January 29, 2026
+
+### Menu Reorganization
+Restructured menu based on usage frequency and logical groupings:
+
+**New Order (top to bottom):**
+1. 💎 **Wallet** - Token/coin display (unchanged)
+2. ☁️ **Account** - Sign in/profile (moved up for new users)
+3. 🎮 **My Games** - Achievements + Reconfigure Games (combined)
+4. 🎁 **Rewards** - Invite Friends + Rewards Shop (combined)
+5. ❓ **Help** - FAQs & Support (moved up for easy access)
+6. ⚙️ **Settings** ▼ - Collapsible (Theme, Sound, Logging, Launch, Activity, Daily Goal)
+7. 🔧 **Advanced** ▼ - Collapsible (Force Update, Reset Data, Developer tools)
+
+### Visual Navigation Cues
+- Added `›` chevron to items that navigate away (open sheets/modals)
+- Items without chevron = toggles or in-place actions
+- CSS class `.menu-chevron` for consistent styling
+
+### Menu Behavior Fixes
+All items that open sheets/modals now close menu first:
+- Sign in with Google
+- Sign Out
+- Set Daily Goal
+- Force Update Check
+- Reset All Data
+- Reset Purchase Limits
+
+### Daily Goal Picker
+Replaced browser `prompt()` with proper sheet:
+- Visual 1-10 grid selector
+- Shows current goal highlighted
+- Immediate feedback on selection
+
+### Files Modified
+- `gameshelf/index.html` - Menu HTML, CSS, JS functions
+- `gameshelf/sw.js` - CACHE_VERSION to v1.3.15
+- `gameshelf/RELEASE_NOTES.txt` - Added v1.3.15 notes
+
+---
+
+## Game Shelf v1.3.13 - Launch Preferences Fix
+
+**Release Date:** January 29, 2026
+
+### Launch Preferences Fix
+- "Manage App vs Browser" now shows ALL games with app support
+- Previously only showed games with already-saved preferences (empty for new users)
+- Now lists: Wordle, Connections, Strands, Mini, Spelling Bee, Letterboxed, Queens, Tango, Pinpoint, Crossclimb, Zip
+- Default is browser, user can tap to toggle
+- Added explanatory text: "Choose how each game opens when you tap Play"
+
+### Settings Menu Modal Fixes
+- All settings that open sheets/modals now close the menu first with 300ms delay
+- Fixed: Customize Sounds, Manage App vs Browser, View Achievements, Share & Earn Tokens, Redeem Rewards, FAQs & Support
+- No more modals appearing behind the settings menu
+
+---
+
+## Game Shelf v1.3.12 - Help System Polish
+
+**Release Date:** January 29, 2026
+
+### iOS Clipboard Documentation
+- Added note to Auto-Log setting: "⚠️ Not available on iOS due to clipboard restrictions"
+- New FAQ: "Why does iOS keep asking to allow paste?"
+  - Explains iOS clipboard protection as a privacy feature
+  - Frames positively (user stays in control of their data)
+- New FAQ: "Why doesn't Auto-Log work on my iPhone?"
+  - Explains Auto-Log requires silent clipboard access
+  - Compares Android/Desktop vs iOS behavior
+  - Validates iOS approach as privacy-respecting
+
+### FAQ Content Expansion
+Added 9 new/expanded how-to entries:
+- How do I get a hint? (new)
+- How do I fix a broken streak? (new)
+- How do I remove a game from my shelf? (new)
+- How do I share my results? (new)
+- How do I sync my data across devices? (new)
+- How do I add a game to my shelf? (new)
+- How do I create a battle? (expanded with full steps)
+- How do I add a friend? (expanded with options)
+- How do I join a battle? (expanded with methods)
+
+### Navigation Fixes
+- Fixed all "Hub" references → "Battles tab" with sub-tabs
+- Updated AI Help system prompt with correct navigation
+- AI now gives accurate directions for all tasks
+
+### AI Help Sign-In Flow
+- No longer kicks user out if not signed in
+- Shows sign-in prompt inline within AI Help sheet
+- User can sign in and immediately ask question
+
+### Modal Consistency
+Added X close buttons to 8 modals:
+- add-friend-sheet, profile-view-sheet, merch-sheet
+- activity-summary-sheet, contact-results-sheet
+- friend-confirm-sheet, suggest-game-sheet, quick-capture-sheet
+
+### Other Fixes
+- Changed Help "About" icon from 🎮 to ℹ️
+- Added "Done" button in AI Help response view
+
+### Files Modified
+- `gameshelf/index.html` - FAQ entries, iOS docs, modal X buttons, AI Help sign-in
+- `gameshelf/sw.js` - Updated CACHE_VERSION to v1.3.11
+- `gameshelf/RELEASE_NOTES.txt` - Added v1.3.11 notes
+- `firebase-functions/functions/index.js` - Updated AI Help system prompt
+
+### Deployment Steps
+1. Upload `index.js` to Command Center (GitHub Actions auto-deploys)
+2. Deploy `gameshelf-deploy-v1_3_11.zip` to production
 
 ---
 
