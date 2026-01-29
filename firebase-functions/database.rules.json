@@ -221,6 +221,33 @@
       }
     },
     
+    // ========== FAQ ANALYTICS ==========
+    // Users can write their own FAQ usage data for improvement insights
+    "faq-analytics": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid",
+        
+        "views": {
+          "$viewId": {
+            ".validate": "newData.hasChildren(['faqId', 'timestamp'])"
+          }
+        },
+        
+        "searches": {
+          "$searchId": {
+            ".validate": "newData.hasChildren(['query', 'resultCount', 'timestamp']) && newData.child('query').val().length <= 100"
+          }
+        },
+        
+        "askAI": {
+          "$clickId": {
+            ".validate": "newData.hasChildren(['timestamp'])"
+          }
+        }
+      }
+    },
+    
     // ========== SERVER-ONLY PATHS ==========
     // These are written by Cloud Functions which bypass security rules
     
