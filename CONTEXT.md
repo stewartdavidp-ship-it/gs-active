@@ -1,7 +1,7 @@
 # Game Shelf Ecosystem - Active Development Context
 
-**Archive Date:** January 28, 2026 (Beta Hub F&F revision)  
-**Archive Version:** gs-active-2026-01-28-beta-hub-ff
+**Archive Date:** January 29, 2026 (AI Help System)  
+**Archive Version:** gs-active-2026-01-29-ai-help
 
 ---
 
@@ -9,7 +9,7 @@
 
 | App | Version | Key Features |
 |-----|---------|--------------|
-| Game Shelf | 1.2.77 | Battle bug fixes, race condition, prize fixes, reminder |
+| Game Shelf | 1.3.4 | AI Help assistant with hybrid context |
 | Quotle | 1.2.6 | Removed PWA install banner |
 | Rungs | 1.0.15 | Removed PWA install banner |
 | Slate | 1.0.16 | Removed PWA install banner, wrong word clear fix |
@@ -18,6 +18,228 @@
 | Test Plan | 4.0.1 | Added version meta tag |
 | Landing Page | 1.1.0 | Marketing page |
 | Beta Hub | 2.1.7.3 | F&F focused, personal banner, real screenshots, support@gameshelf.co |
+
+---
+
+## Game Shelf v1.3.4 - AI Help System
+
+**Release Date:** January 29, 2026
+
+### AI Help Features
+- **Ask AI button** now functional (was placeholder in v1.3.3)
+- Dedicated AI Help sheet with conversational interface
+- Simple single-turn Q&A (no conversation history for v1)
+- Hybrid context awareness:
+  - Passes user's FAQ search query to AI
+  - Passes which FAQ items user expanded/viewed
+  - AI can give more targeted answers
+
+### Technical Implementation
+- **New Firebase function: `getAIHelp`**
+  - Uses Claude Haiku model (same as hints)
+  - System prompt on server (not sent from client)
+  - Separate rate limiting: 20/day (vs hints 20/hour, 50/day)
+  - Dedicated analytics path
+
+- Token Cost: 5 tokens per question
+  - Deducted client-side on success
+
+- Firebase Structure (New):
+```
+ai-help-usage/
+  {userId}/
+    requests: [timestamp, ...]
+
+ai-help-analytics/
+  {pushId}/
+    userId, question, searchQuery, responseLength, timestamp
+```
+
+### Files Modified
+- `gameshelf/index.html` - Added AI Help sheet UI, CSS, JS
+- `gameshelf/sw.js` - Updated CACHE_VERSION to v1.3.4
+- `gameshelf/RELEASE_NOTES.txt` - Added v1.3.4 notes
+- `firebase-functions/functions/index.js` - Added getAIHelp function
+
+### Deployment Steps
+1. Upload `index.js` to Command Center (GitHub Actions auto-deploys)
+2. Deploy `gameshelf-deploy-v1_3_4.zip` to production
+
+### User Flow
+1. User searches FAQ, doesn't find answer
+2. Clicks "Ask AI" button
+3. AI Help sheet opens (search query pre-filled)
+4. User submits question
+5. AI responds with help (aware of search context + viewed FAQs)
+6. 5 tokens deducted
+7. User can "Ask another question" to reset
+
+---
+
+## Game Shelf v1.3.3 - Help System
+
+**Release Date:** January 29, 2026
+
+### New Help Center
+- Unified help sheet replaces separate "Help & About" and "Feedback" menu items
+- Single "Help" entry in menu opens comprehensive help experience
+- Searchable FAQ with 50+ questions across 10 categories
+- Search-as-you-type with 300ms debounce
+- Basic markdown rendering in answers (bold, code, links)
+
+### FAQ Categories
+1. 🚀 Getting Started
+2. 📋 Recording Games
+3. 🔥 Streaks & Stats
+4. 💡 AI Hints
+5. ⚔️ Battles
+6. 👥 Friends & Social
+7. 💰 Tokens & Coins
+8. ☁️ Account & Sync
+9. 🔧 Troubleshooting
+10. 🔒 Privacy & Data
+
+### Help Sheet Features
+- Accordion categories (expand/collapse)
+- FAQ items expand inline to show answers
+- "Ask AI" button (Phase 3 - placeholder for now)
+- Quick access to: Feedback, Tutorial, About, What's New
+- Badge system for new FAQ versions
+
+### Analytics
+- FAQ views tracked: `faq-analytics/{uid}/views`
+- Search queries tracked: `faq-analytics/{uid}/searches`
+- Ask AI clicks tracked: `faq-analytics/{uid}/askAI`
+
+### Technical Implementation
+- FAQ data embedded as JSON in `<script id="faq-data">`
+- ~250 lines of JavaScript for help system
+- ~200 lines of CSS
+- Lightweight markdown renderer (no external library)
+- Version-based badge system using localStorage
+
+### Files Modified
+- `gameshelf/index.html` - Added CSS, HTML, JS, FAQ JSON
+- `gameshelf/sw.js` - Updated CACHE_VERSION to v1.3.3
+- `gameshelf/RELEASE_NOTES.txt` - Added v1.3.3 notes
+
+### Documentation Added
+- `HELP_REFERENCE.md` - Comprehensive help reference document
+- `FAQ.md` - User-facing FAQ derived from reference
+- `docs/HELP_SYSTEM_IMPLEMENTATION.md` - Technical implementation spec
+- `gameshelf/faq-data.json` - Standalone FAQ JSON (for reference)
+
+---
+
+## Game Shelf v1.3.2 - Menu & What's New Update
+
+**Release Date:** January 29, 2026
+
+### What's New System
+- Auto-shows modal after app updates
+- Displays features by version (newest first)
+- Badge indicator on menu when unseen update exists
+- Menu item: Help & About → What's New
+- Stores last seen version in localStorage
+- Version comparison utility for multi-version release notes
+
+### Menu Reorganization
+New order (top to bottom):
+1. 💎 Wallet
+2. ⚙️ Settings & Data (collapsed)
+3. ☁️ Account (moved up)
+4. 🎮 My Games
+5. 🏆 Achievements (moved before Invite)
+6. 🎁 Invite Friends
+7. 🛍️ Rewards Shop
+8. ℹ️ Help & About (with What's New)
+9. 💬 Feedback (moved to bottom)
+
+### Styled Modals
+- `showAbout()` - Now uses bottom sheet with features list
+- `showMerchDetails()` - Fully styled with purchase/earn status
+- `confirmRedeemMerch()` - New confirmation modal
+- `redeemMerch()` - Success modal with gift details
+
+### Code Quality
+- `APP_VERSION` constant (single source of truth)
+- `RELEASE_NOTES` object with version history
+- `checkForWhatsNew()` called on init
+- `updateWhatsNewBadge()` manages both badges
+
+---
+
+## Game Shelf v1.3.1 - Home Screen UX Fixes
+
+**Release Date:** January 29, 2026
+
+### Quick Games Long-Press
+- Quick game emoji buttons now support long-press (consistent with main grid)
+- Tap to play, long-press for options menu
+
+### Current Streak Display  
+- Progress section now shows highest CURRENT streak (not all-time best)
+- More relevant for daily motivation
+
+### Visual Feedback During Long-Press
+- Game cards scale down and show purple glow when holding
+- Users know they're in "long-press mode"
+- Works on game grid and quick game buttons
+
+### Friends Widget Names
+- First name now shown below each friend's avatar
+- Easier to identify friends at a glance
+
+### Battle Widget Improvements
+- Handles multiple active battles (shows most urgent, ending soonest)
+- Shows "(+N more)" indicator when in multiple battles
+- Better time display: shows hours if <1 day remaining
+- Improved reminder wording: "Still to play:" instead of "Still need:"
+
+### Improved Feedback Messages
+- Consistent clipboard feedback across all paths
+- "Not a game result - try copying share text" for unrecognized content
+
+---
+
+## Game Shelf v1.3.0 - Games Tab UX Overhaul
+
+**Release Date:** January 29, 2026
+
+### Remove Games from Shelf
+- Long-press (mobile) or right-click (desktop) any game card
+- Opens game options menu with Play, Stats, and Remove options
+- Confirmation dialog before removal
+- Stats and history preserved when removing games
+- Works in all views: Home, Games tab, Search results
+
+### Improved Game Search
+- Search now matches category names (e.g., "geography" finds all geography games)
+- Search results show streaks (🔥) and scores (✓) for shelf games
+- Clicking a shelf game in search now plays it
+- Long-press support in search results
+
+### Better Recommendations
+- Refresh button now provides actual variety (added random factor)
+- Sound effect when refreshing
+
+### "Add All" Confirmation
+- Bulk adding games shows confirmation dialog
+- Prevents accidental additions
+
+### Category Accordion Persistence
+- Expanded categories remembered across sessions
+- Stored in localStorage
+
+### Bug Fixes
+- Quick game buttons now play game (not open log sheet)
+- Sync failure feedback after 3 consecutive failures
+
+### Code Quality
+- setupLongPress() for touch and context menu handling
+- showGameOptions() for game card options menu
+- saveCategoryExpandedState() / restoreCategoryExpandedState()
+- syncFailureCount tracking
 
 ---
 
