@@ -9,7 +9,7 @@
 
 | App | Version | Key Features |
 |-----|---------|--------------|
-| Game Shelf | 1.2.75 | Sound enhancements (hint, wallet), timezone fix |
+| Game Shelf | 1.2.77 | Battle bug fixes, race condition, prize fixes, reminder |
 | Quotle | 1.2.6 | Removed PWA install banner |
 | Rungs | 1.0.15 | Removed PWA install banner |
 | Slate | 1.0.16 | Removed PWA install banner, wrong word clear fix |
@@ -834,6 +834,8 @@ Previous implementation had client-side writing of `userType` which is a securit
 | `completeBetaRegistration` | Server-side beta registration with coin awards |
 | `getUserType` | Get user's current type for routing |
 | `setUserType` | Placeholder for future admin functionality |
+| `calculateBattleScore` | DB trigger: recalculates battle scores based on type |
+| `checkBattleCompletion` | Hourly job: auto-completes expired battles |
 
 **User Types:**
 ```javascript
