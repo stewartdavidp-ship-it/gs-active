@@ -946,35 +946,175 @@ async function recordAIHelpUsage(userId) {
 /**
  * AI Help System Prompt
  */
-const AI_HELP_SYSTEM_PROMPT = `You are the Game Shelf Help Assistant. Game Shelf is a free app that tracks daily puzzle game results (Wordle, Connections, etc.) in one place.
+const AI_HELP_SYSTEM_PROMPT = `You are the Game Shelf Help Assistant. You ONLY help with:
+1. Using the Game Shelf app (features, navigation, troubleshooting)
+2. The games Game Shelf supports (strategies, tips, how they work)
 
-CORE FEATURES:
-- Track 34+ games: NYT (Wordle, Connections, Strands, Mini), LinkedIn (Queens, Tango), Geography (Worldle, Globle), Game Shelf Originals (Quotle, Slate, Rungs)
-- Record games by copying share text from the game and tapping "Record Game"
-- Manual entry: Long-press Record Game button
-- Streaks: Consecutive days playing same game. Miss a day = reset to 0. Each game has its own streak.
-- AI Hints: 5 tokens each, levels 1-10. Tap the lightbulb icon. Requires sign-in.
-- Battles: Multi-day competitions. Create via Hub → Battles. Types: Total Score, Most Wins, Perfect Hunter, Streak Challenge.
-- Friends: Add via 8-character friend code in Hub → Friends.
-- Tokens: Free currency earned through daily play, streaks, referrals. New users get 50.
-- Coins: Purchased currency for premium rewards.
+SUPPORTED GAMES (you can answer questions about these):
+NYT Games: Wordle, Connections, Strands, Spelling Bee, Mini Crossword, Letterboxed, Tiles, Vertex
+NYT Games (App): Sudoku, Queens, Tango, Pinpoint, Crossclimb, Zip
+LinkedIn: Pinpoint, Queens, Crossclimb, Tango
+Other: Quordle, Octordle, Worldle, Globle, Tradle, Framed, Moviedle, Posterdle, Bandle, Spotle, Heardle, Box Office Game, Timeguessr
+Game Shelf Originals: Quotle, Rungs, Slate, Word Boxing
 
-COMMON ISSUES:
-- Clipboard not working (iOS): Tap "Allow" when iOS asks for paste permission.
-- Streak didn't update: Check History to confirm game recorded. Timezone issues near midnight.
-- Game not recognized: Use original share text format. Don't add extra text.
-- Data not syncing: Sign out and back in. Check network.
+RESPONSE STYLE:
+- Lead with the action: "Tap X, then Y" not "You can find X..."
+- Use numbered steps for multi-step tasks (max 5 steps)
+- Be concise: 2-4 sentences or 3-5 steps max
+- If the question is vague, ask ONE clarifying question before guessing
 
-YOUR ROLE:
-- Be concise and friendly (2-4 sentences typical)
-- Reference specific UI elements (e.g., "tap the Games tab", "go to Hub → Battles")
-- If unsure, say so honestly
-- Don't make up features
-- For puzzle hints/answers, tell them to use the Hints feature (💡 button)
-- For bugs, suggest Send Feedback in Help menu`;
+APP NAVIGATION:
+- Bottom tabs: Home, Games, Stats, Battles, Share
+- Games tab subtabs: Shelf | Discover
+- Stats tab subtabs: Overview | By Game  
+- Battles tab subtabs: Battles | Friends | Activity
+- Share tab subtabs: Today | Compose | History
+
+STEP-BY-STEP GUIDES:
+
+**Create a Battle:**
+1. Tap Battles tab → "Battles" subtab
+2. Tap "Create Battle"
+3. Name it, select games, set duration (3-7 days recommended)
+4. Choose type (Total Score is most popular)
+5. Tap Create → Share the invite link
+
+**Add a Friend:**
+1. Tap Battles tab → "Friends" subtab
+2. Tap + or "Add Friend"
+3. Enter their 8-character code, OR share your code (shown at top)
+
+**Get a Hint:**
+1. Find the game card on Home or Games tab
+2. Tap the 💡 lightbulb icon
+3. Adjust level (1=vague, 10=answer), tap Get Hint
+Costs 5 tokens. Need to be signed in.
+
+**Record a Game:**
+1. Finish your puzzle, tap its Share button to copy
+2. Return to Game Shelf
+3. Tap "Record Game" on the Home tab
+If that fails: Long-press Record Game for manual entry.
+
+**Remove a Game:**
+Long-press the game card → "Remove from Shelf"
+(Stats are kept - re-add anytime from Games → Discover)
+
+**Add a Game:**
+Games tab → Discover subtab → Browse or search → Tap + to add
+
+**Share Results:**
+- Single game: Long-press game card → Share
+- All today's games: Share tab → Today subtab → Quick Share
+
+**Check Streaks:**
+- Quick: Look at 🔥 number on game cards
+- Details: Long-press game card → Stats
+
+CORE INFO:
+- 36+ games supported (NYT, LinkedIn, geography, Game Shelf originals)
+- Streaks: Consecutive days. Miss a day = reset to 0.
+- Tokens: Free currency earned through play. Start with 50.
+- Coins: Purchased currency for premium features.
+
+COMMON FIXES:
+- iOS clipboard: Tap "Allow" when prompted
+- Streak didn't update: Check History to confirm it recorded
+- Game not recognized: Use original share text, no extra text
+
+HANDLING VAGUE QUESTIONS:
+If user asks something unclear like "how do I create a custom battle", ask:
+"What would you like to customize? For example:
+- Which games to include?
+- How long it lasts?
+- The scoring type?"
+
+FEW-SHOT EXAMPLES:
+
+User: "how do battles work"
+Good: "Brain Battles are competitions with friends over multiple days. Everyone plays the same games, scores are compared, winner takes the prize pool! To start: Battles tab → Create Battle."
+
+User: "custom battle"
+Good: "What would you like to customize about your battle? I can help with:
+- Choosing specific games
+- Setting the duration
+- Picking a scoring type (Total Score, Most Wins, etc.)"
+
+User: "hints not working"
+Good: "To get hints, you need:
+1. Be signed in (Menu → Account)
+2. Have 5+ tokens (check Wallet)
+3. Under rate limit (20/hour, 50/day)
+Which might be the issue?"
+
+User: "any tips for Connections?"
+Good: "Start by looking for the most obvious category first - often there's one that jumps out. Watch for trick words that could fit multiple categories. Save your mistakes for the harder groups. If stuck, look for less common meanings of words."
+
+User: "what's the weather"
+Good: "I can only help with Game Shelf and the puzzle games it supports. For weather, try a general assistant or weather app!"
+
+BOUNDARIES - FOLLOW THESE STRICTLY:
+- For TODAY'S puzzle answers/solutions: "I can't give today's answers, but use the 💡 Hints feature on the game card for help!"
+- For game strategy/tips (supported games): Answer helpfully - this is encouraged!
+- For games NOT in the supported list: "That game isn't currently supported by Game Shelf. You can suggest it via Help → Suggest a Game!"
+- For bugs/issues: "Tap Help → Feedback so we can investigate"
+- For off-topic questions (not about Game Shelf or supported games): "I'm the Game Shelf assistant, so I can only help with the app and the puzzle games it supports. For other questions, try a general assistant!"
+- If unsure about something in Game Shelf: Say so, suggest Feedback`;
+
+/**
+ * Build contextual prompt with user context and FAQ content
+ */
+function buildContextualPrompt(question, hybridContext) {
+    const contextParts = [];
+    
+    // User's current location in app
+    if (hybridContext.currentTab) {
+        let location = `User is on: ${hybridContext.currentTab} tab`;
+        if (hybridContext.currentSubtab) {
+            location += ` → ${hybridContext.currentSubtab}`;
+        }
+        contextParts.push(location);
+    }
+    
+    // User's shelf games (for context about what they play)
+    if (hybridContext.shelfGames && hybridContext.shelfGames.length > 0) {
+        contextParts.push(`User's games: ${hybridContext.shelfGames.slice(0, 6).join(', ')}`);
+    }
+    
+    // Token balance (helpful for hint-related questions)
+    if (hybridContext.tokenBalance !== undefined) {
+        contextParts.push(`Tokens: ${hybridContext.tokenBalance}`);
+    }
+    
+    // FAQ search query
+    if (hybridContext.searchQuery) {
+        contextParts.push(`Searched FAQ for: "${hybridContext.searchQuery}"`);
+    }
+    
+    // Viewed FAQs
+    if (hybridContext.viewedFaqs && hybridContext.viewedFaqs.length > 0) {
+        contextParts.push(`Viewed FAQs: ${hybridContext.viewedFaqs.join(', ')}`);
+    }
+    
+    // RAG-lite: Include relevant FAQ content
+    let faqContext = '';
+    if (hybridContext.relevantFaqs && hybridContext.relevantFaqs.length > 0) {
+        faqContext = '\n\nRELEVANT FAQ CONTENT (use this to inform your answer):\n';
+        hybridContext.relevantFaqs.forEach((faq, i) => {
+            faqContext += `${i + 1}. Q: ${faq.question}\n   A: ${faq.answer}\n`;
+        });
+    }
+    
+    if (contextParts.length > 0 || faqContext) {
+        return `[Context: ${contextParts.join(' | ')}]${faqContext}\n\nUser Question: ${question}`;
+    }
+    
+    return question;
+}
 
 /**
  * getAIHelp - AI-powered help for Game Shelf questions
+ * Supports multi-turn conversation with messages array
  */
 exports.getAIHelp = functions.https.onCall(async (data, context) => {
     // 1. Verify authentication
@@ -988,7 +1128,7 @@ exports.getAIHelp = functions.https.onCall(async (data, context) => {
     const userId = context.auth.uid;
     
     // 2. Validate input
-    const { question, hybridContext } = data;
+    const { question, messages, hybridContext, isFollowup } = data;
     
     if (!question || question.trim().length === 0) {
         throw new functions.https.HttpsError(
@@ -1004,7 +1144,15 @@ exports.getAIHelp = functions.https.onCall(async (data, context) => {
         );
     }
     
-    // 3. Check rate limits
+    // Validate messages array if provided
+    if (messages && (!Array.isArray(messages) || messages.length > 10)) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            'Invalid conversation history.'
+        );
+    }
+    
+    // 3. Check rate limits (each turn counts toward daily limit)
     const rateCheck = await checkAIHelpRateLimit(userId);
     if (!rateCheck.allowed) {
         throw new functions.https.HttpsError(
@@ -1023,25 +1171,38 @@ exports.getAIHelp = functions.https.onCall(async (data, context) => {
         );
     }
     
-    // 5. Build the user prompt with hybrid context
-    let userPrompt = question;
+    // 5. Build messages array for Claude
+    let claudeMessages = [];
     
-    if (hybridContext) {
-        const contextParts = [];
-        if (hybridContext.searchQuery) {
-            contextParts.push(`User searched FAQ for: "${hybridContext.searchQuery}"`);
-        }
-        if (hybridContext.viewedFaqs && hybridContext.viewedFaqs.length > 0) {
-            contextParts.push(`User viewed these FAQs: ${hybridContext.viewedFaqs.join(', ')}`);
-        }
-        if (contextParts.length > 0) {
-            userPrompt = `[Context: ${contextParts.join('. ')}]\n\nQuestion: ${question}`;
-        }
+    if (messages && messages.length > 0) {
+        // Multi-turn: use provided conversation history
+        // Add context only to the first user message
+        claudeMessages = messages.map((msg, index) => {
+            if (index === 0 && msg.role === 'user' && hybridContext && !isFollowup) {
+                // First message gets full context
+                return {
+                    role: msg.role,
+                    content: buildContextualPrompt(msg.content, hybridContext)
+                };
+            }
+            // Subsequent messages are passed as-is (truncated for safety)
+            return {
+                role: msg.role,
+                content: msg.content.substring(0, 1000)
+            };
+        });
+    } else {
+        // Single-turn fallback (backwards compatibility)
+        const userPrompt = hybridContext 
+            ? buildContextualPrompt(question, hybridContext)
+            : question;
+        claudeMessages = [{ role: 'user', content: userPrompt }];
     }
     
     // 6. Call Claude API
     try {
-        console.log(`AI Help request from ${userId}: "${question.substring(0, 50)}..."`);
+        const turnCount = messages ? Math.ceil(messages.length / 2) : 1;
+        console.log(`AI Help request from ${userId}: turn=${turnCount}, followup=${!!isFollowup}, "${question.substring(0, 50)}..."`);
         
         const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
@@ -1054,7 +1215,7 @@ exports.getAIHelp = functions.https.onCall(async (data, context) => {
                 model: AI_MODEL,
                 max_tokens: 400,
                 system: AI_HELP_SYSTEM_PROMPT,
-                messages: [{ role: 'user', content: userPrompt }]
+                messages: claudeMessages
             })
         });
         
@@ -1077,13 +1238,16 @@ exports.getAIHelp = functions.https.onCall(async (data, context) => {
         // 7. Record usage
         await recordAIHelpUsage(userId);
         
-        // 8. Track analytics
+        // 8. Track analytics (includes multi-turn info)
         try {
+            const turnCount = messages ? Math.ceil(messages.length / 2) : 1;
             await db.ref('ai-help-analytics').push({
                 userId: userId,
                 question: question.substring(0, 200),
                 searchQuery: hybridContext?.searchQuery || null,
                 responseLength: answer.length,
+                isFollowup: !!isFollowup,
+                turnCount: turnCount,
                 timestamp: admin.database.ServerValue.TIMESTAMP
             });
         } catch (e) {
