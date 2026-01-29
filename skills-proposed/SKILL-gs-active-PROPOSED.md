@@ -25,6 +25,7 @@ Before doing ANY work on Game Shelf apps, you MUST:
 | Leave version mismatches | Confusing bugs, cache issues |
 | Skip incrementing version | Can't track changes, deployment issues |
 | Forget RELEASE_NOTES.txt | Next session doesn't know what changed |
+| Only put index.js in gs-active archive | User can't deploy - needs standalone file for Command Center |
 
 ---
 
@@ -142,9 +143,14 @@ GitHub Actions handles deployment automatically
 1. Edit gs-active/firebase-functions/functions/index.js
 2. (No version number needed for functions)
 3. Update gs-active archive
-4. Tell user to upload index.js to Command Center
-5. GitHub Actions will auto-deploy
+4. OUTPUT STANDALONE index.js FILE for user to download
+5. Tell user to upload index.js to Command Center
+6. GitHub Actions will auto-deploy
 ```
+
+⚠️ **CRITICAL**: Always output `index.js` as a separate downloadable file!
+The gs-active archive is for session continuity, but the user needs the 
+standalone file to upload to Command Center for deployment.
 
 ### Task: Code Review Only (No Deployment)
 
@@ -214,6 +220,7 @@ gs-active/
 □ List all files modified
 □ List current versions of all modified apps
 □ Create deployment packages for modified PWA apps
+□ If Firebase functions modified: OUTPUT STANDALONE index.js FILE
 □ Create updated gs-active archive with all changes
 □ Note any pending tasks for next session
 ```
@@ -229,6 +236,7 @@ gs-active/
 | Version mismatch | Cache bugs | grep for version, update ALL |
 | Not reading CONTEXT.md | Work with wrong version | Always read first |
 | Skipping RELEASE_NOTES | Lost change history | Always update |
+| Not outputting index.js separately | Firebase changes never deployed | Always output standalone file |
 
 ---
 
