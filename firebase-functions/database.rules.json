@@ -248,6 +248,48 @@
       }
     },
     
+    // ========== PUBLIC PROFILES (Friends Today) ==========
+    // Authenticated users can read any public profile
+    // Users can only write their own public profile
+    "gameshelf-public": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "$uid === auth.uid",
+        
+        "displayName": {
+          ".validate": "newData.isString() && newData.val().length <= 50"
+        },
+        
+        "photoURL": {
+          ".validate": "newData.isString() && newData.val().length <= 500"
+        },
+        
+        "inviteCode": {
+          ".validate": "newData.isString() && newData.val().length <= 20"
+        },
+        
+        "gamesTracked": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+        },
+        
+        "currentStreak": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
+        },
+        
+        "todayCount": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+        },
+        
+        "lastUpdated": {
+          ".validate": "newData.isNumber()"
+        },
+        
+        "lastActivity": {
+          ".validate": "newData.hasChildren(['gameId', 'date'])"
+        }
+      }
+    },
+    
     // ========== SERVER-ONLY PATHS ==========
     // These are written by Cloud Functions which bypass security rules
     
