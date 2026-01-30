@@ -1,7 +1,7 @@
 # Game Shelf Ecosystem - Active Development Context
 
-**Archive Date:** January 29, 2026 (Multi-Turn AI Help)  
-**Archive Version:** gs-active-2026-01-29-multiturn-help
+**Archive Date:** January 30, 2026 (Personalized Morning Review - Debugging)  
+**Archive Version:** gs-active-2026-01-30-v1_3_52
 
 ---
 
@@ -9,15 +9,897 @@
 
 | App | Version | Key Features |
 |-----|---------|--------------|
-| Game Shelf | 1.3.18 | Multi-turn AI Help conversations |
+| Game Shelf | 1.3.52 | Personalized Morning Review greeting (always shows greeting box) |
 | Quotle | 1.2.6 | Removed PWA install banner |
 | Rungs | 1.0.15 | Removed PWA install banner |
 | Slate | 1.0.16 | Removed PWA install banner, wrong word clear fix |
 | Word Boxing | 1.0.10 | Removed PWA install banner |
-| Command Center | 8.2.13 | App categories, local file warning, full features |
+| Command Center | 8.3.6 | PWA package validation - nested folder and version mismatch detection |
 | Test Plan | 4.0.1 | Added version meta tag |
 | Landing Page | 1.1.0 | Marketing page |
 | Beta Hub | 2.1.7.3 | F&F focused, personal banner, real screenshots, support@gameshelf.co |
+| **Firebase Functions** | **Updated** | **Personalized Morning Review greeting generation** |
+
+---
+
+## ⚠️ KNOWN ISSUE: Personal Greeting Not Working
+
+**Status:** Feature deployed but returning default greeting for all users.
+
+**What's Working:**
+- Firebase function `getMorningReview` deployed with personal greeting code
+- Function creates `morning-review/{date}/personal/{odometerId}` cache entries
+- Client v1.3.52 has `gatherUserStatsForMorningReview()` function
+- Game snippets generate correctly (no longer giving hints)
+- User has stats locally (20-day Wordle streak, played yesterday)
+
+**What's Not Working:**
+- Function always returns default greeting: "Let's get the day off to a great start."
+- `hasPersonalGreeting: false` in analytics
+
+**Root Cause (Suspected):**
+The `userStats` object is arriving at the function empty or malformed. Either:
+1. Client's `gatherUserStatsForMorningReview()` returns empty object
+2. Stats aren't being passed correctly in the Firebase function call
+3. Game ID mismatch between Morning Review games and user's stats
+
+**Debug Logging Added:**
+The `index.js` in this archive has debug logging that will show:
+- What `userStats` the function receives
+- Whether `hasAnyStreak` and `hasYesterdayActivity` are true
+- What the `_summary` contains
+
+**To Debug:**
+1. Push `index.js` with debug logging to `gameshelf-functions` repo
+2. Delete `morning-review/2026-01-30/personal/{odometerId}` entry
+3. Trigger Morning Review on phone
+4. Check Firebase Functions logs for `getMorningReview`
+
+**Relevant Code Locations:**
+- Client stats gathering: `gameshelf/index.html` line ~26847 (`gatherUserStatsForMorningReview`)
+- Function call: `gameshelf/index.html` line ~26970 (passes `userStats`)
+- Server validation: `firebase-functions/functions/index.js` line ~880 (`generatePersonalGreeting`)
+
+---
+
+## Session: January 30, 2026
+
+### Game Shelf v1.3.52 - Always Show Greeting Box
+
+**Change:** Personal greeting section now always displays (was hidden when default).
+
+**v1.3.51 behavior:** Hide greeting box if default
+**v1.3.52 behavior:** Always show greeting box with either personalized or default message
+
+---
+
+### Game Shelf v1.3.51 - Personalized Morning Review Greeting
+
+**Feature:** Morning Review now includes a personal check-in based on the user's actual game stats.
+
+**How It Works:**
+
+1. Client gathers user stats before calling `getMorningReview`:
+   - Current streaks for each game
+   - Yesterday's scores (if played)
+   - Milestone proximity (e.g., "3 days from 100-day streak")
+   - Games played count
+
+2. Firebase function receives stats, generates personalized 1-2 sentences:
+   - Uses new `PERSONAL_GREETING_PROMPT` with strict rules
+   - Highlights ONE interesting stat (most motivating)
+   - Cached per user per day (won't regenerate on modal reopen)
+
+3. Examples of AI-generated greetings:
+   - "47-day Wordle streak and counting. Locked in."
+   - "Wordle in 2 yesterday? Show-off. Let's see an encore."
+   - "Connections hasn't seen you in 12 days. Just saying."
+   - "3 days from a 100-day Strands streak. No pressure."
+
+**Fallback:** If stats are sparse or uninteresting, shows: "Let's get the day off to a great start."
+
+**UI:** Green highlighted box between header and daily intro, with 👋 icon.
+
+**Files Modified:**
+- `firebase-functions/functions/index.js` - Personal greeting generation + caching
+- `gameshelf/index.html` - v1.3.51, stats gathering, UI display
+- `gameshelf/sw.js` - CACHE_VERSION v1.3.51
+
+**Cache Structure:**
+```
+morning-review/
+  2026-01-30/
+    meta/          (shared intro/vibe/outro)
+    games/         (shared game snippets)
+    personal/      (NEW - per user)
+      {odometerId}: "47-day Wordle streak..."
+```
+
+**Cost Impact:** ~100 tokens per user per day = negligible
+
+---
+
+### Command Center v8.3.6 - PWA Package Validation
+
+**Problem:** Deployment packages with incorrect folder structure silently "succeeded" but deployed wrong files. No warning when version mismatches existed between index.html and sw.js.
+
+**Solution:** Added validation at two stages:
+
+**1. Pre-extraction validation (blocks deployment):**
+- Detects nested folder structure (e.g., `deploy-folder/gameshelf-latest/` instead of `gameshelf-latest/`)
+- Shows clear error with actual path vs expected path
+- Explains how to fix: "Re-create the ZIP so the -latest folder is at the root level"
+
+**2. Post-extraction validation (warnings):**
+- Version mismatch: Warns if index.html and sw.js have different versions
+- Incomplete package: Warns if PWA is missing required files (sw.js, manifest.json, icons/)
+
+**Files Modified:**
+- `command-center/index.html` - v8.3.6
+
+---
+
+### 1. Game Shelf v1.3.47 - OCR Page Segmentation Fix
+
+**Problem:** Stats screenshots (Connections, etc.) were failing to parse - Tesseract.js wasn't detecting the large stat numbers (562, 80, 1, 29) even though the labels were read correctly.
+
+**Root Cause:** Tesseract.js defaults to **PSM 6** (assume uniform block of text) which completely misses large standalone numbers. Server-side Tesseract uses **PSM 3** (fully automatic) by default, which finds them.
+
+**Solution:** Set explicit page segmentation mode when initializing the Tesseract worker:
+
+```javascript
+await ocrWorker.setParameters({
+    tessedit_pageseg_mode: Tesseract.PSM.AUTO  // PSM 3
+});
+console.log('📷 Tesseract worker initialized with PSM AUTO (3)');
+```
+
+**Files Modified:**
+- `gameshelf/index.html` - v1.3.47
+- `gameshelf/sw.js` - CACHE_VERSION v1.3.47
+
+---
+
+### 2. Command Center v8.3.5 - Auto-Close Deployment Cards Fix
+
+**Problem:** Deployment status cards were not auto-closing after completion. Multiple cards would stack up on the dashboard.
+
+**Root Cause:** The auto-close logic only checked `deployment.status === 'success'` and `!hasRunningSteps`, but didn't account for all step completion states properly. The GitHub Pages monitoring step would finish but the useEffect wasn't detecting the final state correctly.
+
+**Solution:** Enhanced the auto-close useEffect with comprehensive checks:
+
+```javascript
+const hasRunningSteps = deployment.steps?.some(s => s.status === 'running');
+const allStepsDone = deployment.steps?.every(s => 
+    s.status === 'complete' || s.status === 'error' || s.status === 'warning'
+);
+const deploymentDone = deployment.status === 'success' || deployment.status === 'error' || deployment.status === 'failed';
+const isFullyComplete = deploymentDone && !hasRunningSteps && (allStepsDone || !deployment.steps?.length);
+```
+
+**Added Debug Logging:**
+```
+[AutoClose] deploy-123: status=success, hasRunning=false, allDone=true, fullyComplete=true
+[AutoClose] Scheduling auto-close for deploy-123 in 4s
+[AutoClose] Removing deploy-123
+```
+
+**Files Modified:**
+- `command-center/index.html` - v8.3.5
+
+---
+
+### 3. Firebase Functions - Morning Review Prompt Improvements
+
+**Problem:** The Morning Review AI was revealing too much information about puzzles, essentially giving hints. Example: "Think literary, think fairy tales, and think about homophones that pack a punch."
+
+**Solution:** Completely rewrote the system and user prompts to be much stricter about not revealing content:
+
+**New System Prompt Rules:**
+- ❌ NEVER reveal themes, categories, topics, word types, literary references
+- ✅ ONLY talk about difficulty feelings, emotional reactions, time estimates, general vibes
+
+**Good vs Bad Examples:**
+| Bad (reveals too much) | Good (hype only) |
+|------------------------|------------------|
+| "Think literary, think fairy tales" | "The constructor woke up devious today." |
+| "Watch for homophones" | "Bring your A-game." |
+| "A celebratory theme with real stars" | "The spangram clicked early - satisfying solve." |
+
+**Files Modified:**
+- `firebase-functions/functions/index.js` - Updated `MORNING_REVIEW_SYSTEM_PROMPT` and user prompt
+
+**Note:** Clear Firebase cache (`morning-review/{date}`) to regenerate with new prompts.
+
+---
+
+### OCR Journey (v1.3.44 → v1.3.47)
+
+| Version | Attempt | Result |
+|---------|---------|--------|
+| v1.3.44 | Try both original and inverted images | ❌ Wrong image often selected |
+| v1.3.45 | Quality-based scoring for image selection | ❌ Both images returned garbage |
+| v1.3.46 | Added detailed debug logging | 🔍 Revealed Tesseract getting no numbers |
+| **v1.3.47** | **Set PSM to AUTO (3)** | ✅ **Numbers detected correctly!** |
+
+The key insight: Server-side pytesseract found numbers perfectly while browser Tesseract.js did not. Testing different PSM modes revealed PSM 6 (default in Tesseract.js) skips large standalone numbers, while PSM 3 (AUTO) finds them.
+
+---
+
+## Game Shelf v1.3.35 - Morning Review
+
+**Release Date:** January 29, 2026
+
+### Overview
+New AI-powered feature that gives users a spoiler-free preview of today's puzzles, building excitement before their morning puzzling session.
+
+### How It Works
+
+**Generate Once, Splice Per User:**
+1. First user request of the day triggers AI generation for ALL supported games
+2. AI searches web for today's puzzles, generates hype snippets
+3. Results cached in Firebase by date
+4. Subsequent users get cached results instantly
+5. Response spliced to only include games on user's shelf
+
+**Supported Games (10 total):**
+- NYT: Wordle, Connections, Strands, Mini, Spelling Bee
+- LinkedIn: Queens, Pinpoint  
+- Indies: Quordle, Octordle, Waffle
+
+### Firebase Function: getMorningReview
+
+**Request:**
+```javascript
+getMorningReview({ 
+  games: ['wordle', 'connections', 'strands'],
+  date: 'today' | 'yesterday'
+})
+```
+
+**Response:**
+```javascript
+{
+  date: '2026-01-30',
+  dateDisplay: 'Thursday, January 30, 2026',
+  intro: "Good morning, puzzlers! Thursday's bringing some heat...",
+  vibe: "🌶️🌶️🌶️",
+  vibeLabel: "Medium-Spicy",
+  games: [
+    { id: 'wordle', snippet: "Your starting word matters today..." },
+    { id: 'connections', snippet: "The editor woke up chaotic..." }
+  ],
+  outro: "Go get 'em.",
+  cached: true,
+  isYesterday: false
+}
+```
+
+### Cache Structure
+
+```
+morning-review/
+  2026-01-30/
+    meta/
+      generatedAt: timestamp
+      intro: "..."
+      vibe: "🌶️🌶️🌶️"
+      vibeLabel: "Medium-Spicy"
+      outro: "..."
+    games/
+      wordle: "snippet..."
+      connections: "snippet..."
+      strands: "snippet..."
+      ... (10 games total)
+```
+
+### Client-Side UX
+
+**Auto-Trigger:** First login of the day (tracked via localStorage)
+
+**Modal Features:**
+- ☀️ Animated sun icon header
+- Date display
+- Italic intro quote
+- Game cards with icons and snippets
+- Vibe rating section (🌶️ emojis)
+- Motivational outro
+- "Let's Go!" CTA button
+- "Yesterday's Review" link
+
+**Settings:**
+- Toggle: "Show Daily Preview" (default: enabled)
+- Link: "View Today's Review" (opens modal on demand)
+- Location: Settings → Settings submenu → Morning Review
+
+### AI Prompt Design
+
+**System Prompt Key Rules:**
+- NEVER reveal answers, letters, words, or specific solutions
+- NEVER say "contains double letters" or similar direct hints
+- OK to mention: difficulty vibe, tricky elements, clever construction
+- Keep each game snippet to 1-2 sentences
+- Warm, energetic tone (like a favorite radio DJ)
+
+### Cache Cleanup
+
+Added to `dailyCacheCleanup` function:
+- Morning reviews: Keep 7 days (allows "yesterday" feature + history)
+- Hint cache: Keep 2 days (unchanged)
+
+### Files Modified
+
+- `firebase-functions/functions/index.js` - getMorningReview function
+- `gameshelf/index.html` - UI, CSS, JavaScript (v1.3.35)
+- `gameshelf/sw.js` - Cache version v1.3.35
+- `gameshelf/RELEASE_NOTES.txt` - Documentation
+- `CONTEXT.md` - This documentation
+
+---
+
+## Command Center v8.3.3 - Auto-Close Fix
+
+**Release Date:** January 29, 2026
+
+### Bug Fix
+Fixed deployment status cards not auto-closing after success.
+
+**Problem:** The `scheduleAutoClose` function was called inside a state setter, causing stale closure issues. The setTimeout callback was referencing old state.
+
+**Solution:** Moved auto-close logic to a `useEffect` that watches `activeDeployments`. Now uses a ref to track which deployments already have timers scheduled, preventing duplicate timers.
+
+**Behavior:** Successful deployment cards now properly auto-close after 4 seconds. Error cards still require manual dismissal.
+
+---
+
+## Game Shelf v1.3.34 - Robust OCR Engine
+
+**Release Date:** January 29, 2026
+
+### Problem
+When importing a Connections stats screenshot, Game Shelf was incorrectly detecting it as a Mini Crossword time. The phone's status bar time (e.g., "2:29") was matching the overly-greedy Mini parser regex.
+
+### Root Cause
+Mini parser regex `(\d+):(\d+)|Mini\s*Crossword` matched ANY time pattern, including status bar times.
+
+### Fix: Multi-Layer Defense
+
+**1. Strict Mini Regex**
+- Now requires "Mini Crossword", "The Mini", or "NYT Mini" context
+- Time must be within 50-100 chars of Mini mention
+- Bare times like "2:29" no longer match
+
+**2. Game Conflict Detection**
+Mini parser rejects if text contains:
+- "Connections Bot" / "Connections archive"
+- "current streak...max streak" (stats page indicator)
+- Strong indicators of other games
+
+**3. Stats Page Priority**
+- `isLikelyStatsScreenshot()` detects stats pages
+- `detectSplitLineLayout()` handles OCR where numbers/labels are on separate lines
+- Shows helpful prompt if stats detected but unparseable
+
+**4. Parse Result Validation**
+- `validateParseResult()` checks game makes sense for text
+- Compares game indicators across all games
+- Rejects if stronger indicators for different game
+
+**5. Sanity Checks**
+- Mini times must be <30 minutes
+- Stats numbers validated (games played > streaks, win% ≤100)
+
+### New Functions
+```javascript
+detectSplitLineLayout(text)      // Handle OCR split lines
+isLikelyStatsScreenshot(text)    // Detect stats pages
+parseMultipleGamesValidated(text) // Validated parsing
+validateParseResult(result, text) // Cross-validation
+showStatsParseFailurePrompt()    // User prompt on failure
+```
+
+---
+
+## Command Center v8.3.1 - Auto-Redirect to Smart Deploy
+
+**Release Date:** January 29, 2026
+
+### Enhancement
+When you drop a gs-active.zip on the Dashboard, Command Center now:
+1. Detects the gs-active archive structure
+2. Prompts: "Open Smart Deploy for version comparison?"
+3. If yes → Redirects to Smart Deploy and auto-loads the archive
+
+No more manually navigating to Deploy → Smart Deploy!
+
+---
+
+## Command Center v8.3.0 - Smart Deploy + Multi-Status
+
+**Release Date:** January 29, 2026
+
+### New Features
+
+#### 1. Smart Deploy from gs-active
+Upload a gs-active zip archive and Command Center will:
+- Parse the archive and find all apps
+- Extract versions from each app's index.html
+- Fetch deployed versions from GitHub repos
+- Show comparison table with status (✓ Current / 🔄 Needs Update)
+- Auto-select apps that need updates
+- Deploy selected apps in batch
+
+**Navigation:** Deploy → Smart Deploy
+
+**Supported apps:** gameshelf, quotle, slate, rungs, wordboxing, beta, landing, command-center, testplan, firebase-functions
+
+#### 2. Multi-Deployment Status Boxes
+- Each deployment now gets its own status card
+- Multiple deploys can run simultaneously
+- Success: Auto-closes after 4 seconds
+- Error: Stays open until manually dismissed
+- Shows app name, target, and step progress
+
+### Technical Details
+- `activeDeployments` array replaces single `activeDeployment`
+- `setActiveDeployment` compatibility wrapper maintains existing code
+- `SmartDeployView` component handles archive parsing
+- `GS_ACTIVE_FOLDER_MAP` maps folder names to app IDs
+
+### Files Modified
+- `command-center/index.html` - Smart Deploy view, multi-status, v8.3.0
+
+---
+
+## Game Shelf v1.3.33 - Smart Stats Import
+
+**Release Date:** January 29, 2026
+
+### Problem Solved
+The previous stats import was brittle - it required exact phrases like "GUESS DISTRIBUTION" or "MISTAKE DISTRIBUTION" to identify games. If OCR didn't capture these exactly, or if game stats pages changed, import would fail.
+
+### New Architecture
+
+**Layer 1: Fuzzy Game Detection**
+- `STATS_GAME_KEYWORDS` maps each game ID to keywords that might appear
+- `detectGameFromText()` searches for any keyword match
+- Confidence scoring prefers longer/more specific matches
+- Example: "Connections Bot" or "Connections archive" → connections
+
+**Layer 2: Universal Stats Extraction**
+- `UNIVERSAL_STAT_PATTERNS` defines regex patterns for each stat type
+- Works across all games regardless of exact wording
+- Patterns: played/completed, win/success/%, current/day streak, max/best/longest
+
+**Layer 3: Layout Detection**
+- `detectFourNumberLayout()` recognizes the common [played][%][streak][max] pattern
+- Works even without labels if numbers are in expected positions
+
+**Layer 4: Graceful Fallback**
+- If game can't be determined, shows game picker UI
+- Displays extracted stats preview
+- User selects from games on their shelf
+
+### Key Functions
+```javascript
+STATS_GAME_KEYWORDS          // Game ID → keyword array
+UNIVERSAL_STAT_PATTERNS      // Stat type → regex array
+detectGameFromText(text)     // Fuzzy game detection
+extractStatValue(text, patterns)  // Multi-pattern extraction
+detectFourNumberLayout(text) // Heuristic layout detection
+showGamePickerForStats(stats)     // Fallback UI
+selectGameForUnknownStats(gameId) // User selection handler
+```
+
+### Extensibility
+To add a new game's stats support:
+1. Add entry to `STATS_GAME_KEYWORDS` with game ID and keywords
+2. That's it - universal patterns handle the rest
+
+---
+
+## Game Shelf v1.3.32 - Insight FAQ Entry
+
+**Release Date:** January 29, 2026
+
+### Changes
+- Added single FAQ entry: "What's the lightbulb icon on my game card?"
+- Explains Daily Insights feature for users who notice the 💡 icon
+- Notes it's currently Connections-only, more games coming
+
+### Rationale
+Minimal documentation for new feature until it expands to more games. Prevents user confusion about the lightbulb icon without over-documenting a single-game feature.
+
+---
+
+## Game Shelf v1.3.31 - RAG Improvements (Phase 5)
+
+**Release Date:** January 29, 2026
+
+### Overview
+Improved AI Help accuracy by enhancing the FAQ retrieval system (RAG-lite).
+
+### Changes
+
+**1. Increased FAQ Results: 3 → 5**
+- AI Help now receives 5 relevant FAQ entries as context (was 3)
+- More context = better answers
+
+**2. Synonym Expansion**
+- Query words are expanded with synonyms before matching
+- Example: "sync" also matches "import", "transfer", "migrate"
+- Example: "balance" also matches "wallet", "tokens", "coins"
+
+**Synonym Map:**
+```javascript
+wallet → balance, money, currency, tokens, coins
+token → tokens, credits, points, currency
+coin → coins, money, purchase, buy, paid, premium
+battle → battles, competition, compete, challenge, vs
+friend → friends, social, buddy, people, add
+streak → streaks, consecutive, daily, chain, row
+hint → hints, clue, tip, stuck, help
+share → sharing, send, post, export
+record → recording, log, save, track, enter
+import → sync, transfer, migrate, screenshot
+stats → statistics, data, history, performance
+settings → preferences, options, configure, customize
+account → login, signin, sign-in, profile, google
+game → games, puzzle, puzzles, wordle, connections
+```
+
+**3. Category Boosting**
+- High-priority categories get score multipliers
+- `getting-started`: 2x boost
+- `troubleshooting`: 2x boost  
+- `recording`: 1.5x boost
+- `streaks`: 1.5x boost
+
+### Technical Details
+- `expandQueryWithSynonyms()` - New function to expand search terms
+- `getFaqMatchScore()` - Now accepts categoryId, applies boost
+- `getRelevantFaqContent()` - Returns 5 results (was 3)
+
+### Files Modified
+- `gameshelf/index.html` - RAG improvements, version 1.3.31
+- `gameshelf/sw.js` - CACHE_VERSION to v1.3.31
+- `gameshelf/RELEASE_NOTES.txt` - Added v1.3.31 notes
+
+---
+
+## Game Shelf v1.3.30 - Share Text Fix
+
+**Release Date:** January 29, 2026
+
+### Changes
+- Insight share now uses 🧩 emoji (consistent with other share footers)
+- Fixed URL from gameshelf.app to gameshelf.co
+- Updated all gameshelf.app references throughout app
+
+### Share Format
+```
+Today's Connections (Jan 29) was 🎯 FAIR!
+
+What did you think?
+
+🧩 Tracked with Game Shelf
+gameshelf.co
+```
+
+---
+
+## Game Shelf v1.3.29 - Insight Button Fix
+
+**Release Date:** January 29, 2026
+
+### Bug Fix
+The "View Today's Insight" button was only showing in the long-press menu. Users who saw the 💡 icon and tapped the card expected to see the insight option.
+
+**Fixed:** Now shows in both places:
+- Tap completed game → "Already Played" sheet → "View Today's Insight" button
+- Long-press game → Game options menu → "View Today's Insight" button
+
+---
+
+## Game Shelf v1.3.28 - Daily Insights with Reactions
+
+**Release Date:** January 29, 2026
+
+### Overview
+New AI-powered feature that provides post-puzzle analysis after completing supported games. Users can react and share their take.
+
+### User Flow
+1. User logs their Connections result
+2. 💡 icon appears on the game card
+3. Long-press (or right-click) on card → "View Today's Insight" button
+4. Sheet opens with AI analysis of today's puzzle
+5. User can react: 🎯 Fair / 🙄 BS / 🤯 Brutal
+6. See aggregate reactions from other players
+7. "Share Your Take" button to share reaction
+
+### Analysis Content
+- **Difficulty:** 1-5 🔥 rating
+- **Sneakiness:** Low/Medium/High
+- **The Breakdown:** Category-by-category analysis, traps, red herrings
+- **Verdict:** Was the puzzle fair? Any liberties taken?
+
+### Technical Implementation
+
+**Firebase Functions:**
+- `getDailyInsight` - Generate/cache puzzle analysis
+- `submitInsightReaction` - Submit user reaction (fair/bs/brutal)
+- `getInsightReaction` - Get user's existing reaction
+
+**Firebase Structure:**
+```
+daily-insights/{date}/{gameId}/
+  insight: "AI analysis text..."
+  cachedAt: timestamp
+  reactions/
+    fair: 32
+    bs: 8
+    brutal: 7
+  userReactions/
+    {userId}: "fair" | "bs" | "brutal"
+```
+
+**Client Functions:**
+- `showInsightSheet()`, `closeInsightSheet()`
+- `formatInsightContent()`, `isInsightAvailable()`
+- `submitInsightReaction()`, `updateReactionsSummary()`
+- `shareInsightTake()`
+
+### Files Modified
+- `firebase-functions/functions/index.js` - 3 new functions
+- `gameshelf/index.html` - CSS, HTML sheet, JS functions
+- `gameshelf/sw.js` - CACHE_VERSION to v1.3.28
+- `gameshelf/RELEASE_NOTES.txt` - Added v1.3.28 notes
+
+### Expansion Plans
+Currently Connections only. Can expand to other games if popular.
+
+---
+
+## ✅ COMPLETE: AI Help System Prompt v2.0
+
+**Status:** Implemented in firebase-functions/functions/index.js  
+**Tracking File:** `docs/HELP-DOCS-PROJECT.md`  
+**Draft File:** `docs/SYSTEM_PROMPT_V2.md`  
+**Test Checklist:** `docs/AI-HELP-TEST-CHECKLIST.md`
+
+### What Changed
+Expanded AI Help system prompt from ~200 to ~575 lines with comprehensive coverage:
+
+**New Coverage Added:**
+- Menu structure (Wallet, Account, My Games, Rewards, Help, Settings, Advanced)
+- Home screen (Quick Game Buttons, Tap to Log, Progress Widget)
+- Share Tab (Today/Compose/History subtabs explained)
+- Battle Types (full scoring formulas for all 4 types)
+- Game card long-press options menu
+- Activity Feed
+- Achievements, Rewards Shop, Referral Program
+- Settings (Theme, Sounds, Notifications, Daily Goal)
+- Advanced settings (Force Update, Clear Cache, Reset Data)
+
+**Enhanced:**
+- Few-shot examples: 8 → 16
+- Navigation actions: +2 new (showHelpSheet, switchShareTab:history)
+- Better structured with visual separators
+- More troubleshooting guidance
+
+### Deployment
+Upload `firebase-functions/functions/index.js` to Command Center → GitHub Actions auto-deploys.
+
+### Next Steps (Help Project)
+1. **Deploy** - Upload index.js to Command Center
+2. **Test** - Use `docs/AI-HELP-TEST-CHECKLIST.md` to validate 30 questions
+3. **Phase 5** - RAG Improvements (increase FAQ matches from 3 → 5)
+4. **Phase 6** - Testing & Tuning (expand to 50 questions)
+
+---
+
+## ✅ COMPLETE: FAQ Expansion Phase 3 (Integration)
+
+**Status:** All 136 questions integrated into v1.3.27  
+**Tracking File:** `docs/HELP-DOCS-PROJECT.md`  
+**JSON File:** `docs/faq-data-v2.json`
+
+### What Was Done
+Expanded FAQ from 48 to 136 questions across 15 categories:
+- **Getting Started** (10 questions)
+- **Navigation** (10 questions) - NEW
+- **Home Screen** (8 questions) - NEW
+- **Recording Games** (10 questions)
+- **Games Tab** (8 questions) - NEW
+- **Streaks & Stats** (12 questions) - includes Import Stats
+- **AI Hints** (10 questions)
+- **AI Help** (7 questions) - NEW
+- **Battles** (11 questions)
+- **Friends & Social** (8 questions)
+- **Share Tab** (7 questions) - NEW
+- **Tokens & Coins** (10 questions)
+- **Account & Sync** (8 questions)
+- **Troubleshooting** (12 questions)
+- **Privacy & Data** (5 questions)
+
+### Next Steps (Phase 4+)
+- Phase 4: System Prompt Update
+- Phase 5: RAG Improvements
+- Phase 6: Testing & Tuning
+
+---
+
+## Game Shelf v1.3.27 - Expanded FAQ System
+
+**Release Date:** January 29, 2026
+
+### Overview
+Expanded the in-app FAQ system from 48 to 136 questions across 15 categories.
+
+### Changes
+- Added 5 new categories: Navigation, Home Screen, Games Tab, AI Help, Share Tab
+- Expanded all existing categories with additional questions
+- Improved keyword coverage for better search matching
+- FAQ data version updated from 1.0 to 2.0
+
+### Technical Notes
+- JSON structure unchanged (backwards compatible)
+- All questions include expanded keyword arrays
+- Part of Help Documentation Project Phase 3
+
+---
+
+## Game Shelf v1.3.26 - Tutorial System Overhaul
+
+**Release Date:** January 29, 2026
+
+### Overview
+Fixed tutorial system that was targeting hidden/missing elements and had positioning issues on desktop.
+
+### Changes
+- **Tutorial Target Fixes:** Updated selectors from hidden FABs to header buttons
+  - `#share-fab` → `#header-share-btn`
+  - `#hint-fab` → `#header-hint-btn`
+  - Added action to switch to Discover subtab before targeting browse categories
+- **Desktop Positioning Fix:** Calculates body offset when transform is applied
+- **Tutorial Highlight Class:** Brightness filter + purple glow on target elements
+- **Active Tab Visibility:** Bumped opacity from 15% to 25%
+
+### Technical Notes
+Session document: `docs/SESSION-CHANGES-2026-01-29-desktop-darkmode.md`
+
+---
+
+## Game Shelf v1.3.25 - Tutorial Spotlight Brightening
+
+**Release Date:** January 29, 2026
+
+### Overview
+Intermediate version adding `.tutorial-highlighted` class (superseded by v1.3.26).
+
+---
+
+## Game Shelf v1.3.24 - Dark Mode Visibility Fix
+
+**Release Date:** January 29, 2026
+
+### Overview
+Fixed visibility issues in dark mode where tutorial highlights and active tab indicators were nearly invisible.
+
+### Changes
+- Tutorial spotlight now has bright purple border and inner glow
+- Active tab indicator now has visible purple background
+- Pulse animation updated to work in dark mode
+
+### Technical Notes
+Dark mode requires **additive light effects** (glows, bright backgrounds) rather than subtractive shading. The inner glow on the tutorial spotlight illuminates the content inside.
+
+---
+
+## Game Shelf v1.3.23 - Desktop Enhancement
+
+**Release Date:** January 29, 2026
+
+### Overview
+Added desktop browser support with contained layout and mobile reminder. All changes are behind a media query, leaving mobile experience completely unchanged.
+
+### Changes
+- App contained to 480px centered column on desktop
+- Dark background surrounds the app container
+- "Game Shelf is built for mobile" banner (dismissible)
+- Desktop background color matches theme (dark/light)
+
+### Technical Notes
+The CSS `transform: translateX(-50%)` on body causes all `position: fixed` children to position relative to body instead of viewport. This contains the nav bar, sheets, and overlays within the 480px container without modifying each element.
+
+### localStorage Keys Added
+- `gs_desktop_banner_dismissed` - Tracks if user dismissed the desktop banner
+
+---
+
+## Game Shelf v1.3.22 - AI Help Import Stats Fix
+
+**Release Date:** January 29, 2026
+
+### Overview
+Fixed AI Help giving incorrect information about Import Stats feature. AI now correctly explains how to import existing streaks from Wordle and other games.
+
+### Changes
+- Added Import Stats step-by-step guide to system prompt
+- Added showImportStats navigation action
+- Added FAQ entry for importing streaks
+- Added few-shot examples for sync/import questions
+
+---
+
+## Game Shelf v1.3.21 - Active Tab Bold Indicator
+
+**Release Date:** January 29, 2026
+
+### Overview
+Added bold font weight to active tab label for better visibility of current location.
+
+---
+
+## Game Shelf v1.3.20 - AI Help Bug Fix
+
+**Release Date:** January 29, 2026
+
+### Overview
+Fixed "Can't find variable: getGameInfo" error when using AI Help.
+
+---
+
+## Game Shelf v1.3.19 - AI Navigation Actions
+
+**Release Date:** January 29, 2026
+
+### Overview
+AI Help now provides clickable navigation buttons. When the AI explains how to do something, it includes a button that takes the user directly there.
+
+### User Experience
+```
+User: "How do I create a battle?"
+
+AI: "To create a battle:
+1. Go to Battles tab → Battles subtab
+2. Tap Create Battle
+3. Name it, pick games, set duration
+
+[Create Battle →]"  ← Clickable button!
+```
+
+### Available Actions
+| Action | Description |
+|--------|-------------|
+| `switchTab:X` | Navigate to main tab |
+| `switchGamesTab:X` | Games subtab (shelf/discover) |
+| `switchStatsTab:X` | Stats subtab (overview/bygame) |
+| `switchBattlesTab:X` | Battles subtab |
+| `switchShareTab:X` | Share subtab |
+| `showCreateBattle` | Open Create Battle sheet |
+| `showAccountSheet` | Open Sign In |
+| `showWalletSheet` | Open Wallet |
+| `showAddFriendSheet` | Open Add Friend |
+| `showFeedbackSheet` | Open Feedback |
+| `showSuggestGameSheet` | Open Suggest a Game |
+| `openGame:X` | Find/open a game |
+| `showGameHint:X` | Open hint for a game |
+
+### Technical Implementation
+- Token format: `[ACTION:functionName:param|Button Label]`
+- Parser in `formatAIHelpResponse()` renders buttons
+- `executeAIHelpAction()` maps actions to existing functions
+- Event delegation handles button clicks
+- Closes AI Help sheet, then navigates with 300ms delay
+- Analytics tracked in `ai-help-actions` Firebase path
+
+### Files Modified
+- `gameshelf/index.html` - Parser, handler, CSS, click listener
+- `gameshelf/sw.js` - CACHE_VERSION to v1.3.19
+- `gameshelf/RELEASE_NOTES.txt` - Added v1.3.19 notes
+- `firebase-functions/functions/index.js` - System prompt with actions
+- `docs/AI-NAVIGATION-INTEGRATION.md` - Full spec document
 
 ---
 
