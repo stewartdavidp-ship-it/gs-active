@@ -4,6 +4,10 @@
  * FUNCTIONS:
  * - getHint: AI-powered hints with caching
  * - getHintUsage: Rate limit status
+ * - getDailyInsight: Post-puzzle AI analysis with caching
+ * - submitInsightReaction: User reactions (fair/bs/brutal)
+ * - getInsightReaction: Get user's existing reaction
+ * - getMorningReview: Pre-puzzle hype preview (spoiler-free, cached, spliced per user)
  * - createCoinCheckout: Stripe payment
  * - stripeWebhook: Payment webhook
  * - getGiftOptions, redeemGift, getGiftHistory: Gift system
@@ -433,6 +437,824 @@ exports.getHintUsage = functions.https.onCall(async (data, context) => {
     };
 });
 
+// ============ DAILY INSIGHTS ============
+
+// Games that support daily insights
+const INSIGHT_GAMES = ['connections'];
+
+// System prompt for puzzle analysis
+const INSIGHT_SYSTEM_PROMPT = `You are a puzzle critic analyzing today's NYT Connections puzzle. Your job is to help players understand if the puzzle was fair and why it was tricky.
+
+RESPONSE FORMAT - Use exactly this structure:
+**Difficulty:** [1-5 🔥 emojis]
+**Sneakiness:** [Low/Medium/High]
+
+**The Breakdown:**
+[2-4 bullet points analyzing each category - what made it easy/hard, any traps]
+
+**Verdict:** [One sentence: was this puzzle fair? Any liberties taken?]
+
+GUIDELINES:
+- Be conversational and opinionated - take a stance
+- Call out red herrings and category overlaps specifically
+- Note if any category required niche knowledge
+- Keep it under 150 words total
+- Don't be afraid to criticize unfair puzzles
+- Celebrate clever, well-constructed puzzles`;
+
+// Check if insight is cached
+async function getCachedInsight(gameId) {
+    const dateKey = getTodayKey();
+    const cacheRef = db.ref(`daily-insights/${dateKey}/${gameId}`);
+    const snapshot = await cacheRef.once('value');
+    const cached = snapshot.val();
+    
+    if (cached && cached.insight) {
+        console.log(`Insight cache HIT: ${gameId}`);
+        return {
+            insight: cached.insight,
+            reactions: cached.reactions || null
+        };
+    }
+    console.log(`Insight cache MISS: ${gameId}`);
+    return null;
+}
+
+// Store insight in cache
+async function cacheInsight(gameId, insight) {
+    const dateKey = getTodayKey();
+    const cacheRef = db.ref(`daily-insights/${dateKey}/${gameId}`);
+    await cacheRef.update({
+        insight: insight,
+        cachedAt: admin.database.ServerValue.TIMESTAMP
+    });
+    console.log(`Insight cached: ${gameId}`);
+}
+
+// Generate insight from AI
+async function generateInsightFromAI(apiKey, gameId) {
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    
+    const prompt = `Search for today's NYT Connections puzzle (${dateStr}) and analyze it. Find the 16 words, the 4 categories, and their difficulty colors (yellow=easy, green, blue, purple=hard).
+
+Then provide your analysis of this specific puzzle.`;
+    
+    const requestBody = {
+        model: AI_MODEL,
+        max_tokens: 500,
+        system: INSIGHT_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: prompt }],
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+    };
+    
+    console.log(`Generating insight for ${gameId}...`);
+    
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) {
+        const error = await response.text();
+        console.error('Anthropic API error:', response.status, error);
+        throw new Error('Failed to generate insight. Please try again.');
+    }
+    
+    const result = await response.json();
+    
+    const insight = result.content
+        ?.filter(block => block.type === 'text')
+        ?.map(block => block.text)
+        ?.join('\n')?.trim() || 'Unable to generate insight.';
+    
+    console.log(`Insight generated for ${gameId}, length=${insight.length}`);
+    
+    return insight;
+}
+
+/**
+ * Get daily insight for a puzzle
+ * Caches insights - first request generates, subsequent requests read from cache
+ */
+exports.getDailyInsight = functions.https.onCall(async (data, context) => {
+    // 1. Verify authentication
+    if (!context.auth) {
+        throw new functions.https.HttpsError(
+            'unauthenticated',
+            'You must be signed in to view insights.'
+        );
+    }
+    
+    // 2. Validate input
+    const { gameId } = data;
+    
+    if (!gameId) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            'Missing required field: gameId'
+        );
+    }
+    
+    if (!INSIGHT_GAMES.includes(gameId)) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            `Insights not available for ${gameId}`
+        );
+    }
+    
+    // 3. Check cache first
+    const cached = await getCachedInsight(gameId);
+    if (cached) {
+        // Track analytics
+        try {
+            await db.ref('insight-analytics').push({
+                userId: context.auth.uid,
+                gameId: gameId,
+                fromCache: true,
+                timestamp: admin.database.ServerValue.TIMESTAMP
+            });
+        } catch (e) {
+            console.warn('Insight analytics failed:', e);
+        }
+        
+        return {
+            insight: cached.insight,
+            reactions: cached.reactions,
+            cached: true
+        };
+    }
+    
+    // 4. Get API key
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        console.error('Anthropic API key not configured');
+        throw new functions.https.HttpsError(
+            'failed-precondition',
+            'AI insights are not configured. Please contact support.'
+        );
+    }
+    
+    // 5. Generate the insight
+    try {
+        const insight = await generateInsightFromAI(apiKey, gameId);
+        
+        // 6. Cache for other users
+        await cacheInsight(gameId, insight);
+        
+        // 7. Track analytics
+        try {
+            await db.ref('insight-analytics').push({
+                userId: context.auth.uid,
+                gameId: gameId,
+                fromCache: false,
+                timestamp: admin.database.ServerValue.TIMESTAMP
+            });
+        } catch (e) {
+            console.warn('Insight analytics failed:', e);
+        }
+        
+        // 8. Return
+        return {
+            insight: insight,
+            reactions: null,
+            cached: false
+        };
+        
+    } catch (error) {
+        console.error('Insight generation error:', error.message);
+        throw new functions.https.HttpsError(
+            'internal',
+            error.message || 'Failed to generate insight. Please try again.'
+        );
+    }
+});
+
+/**
+ * Submit a reaction to today's insight
+ * One reaction per user per game per day
+ */
+exports.submitInsightReaction = functions.https.onCall(async (data, context) => {
+    // 1. Verify authentication
+    if (!context.auth) {
+        throw new functions.https.HttpsError(
+            'unauthenticated',
+            'You must be signed in to react.'
+        );
+    }
+    
+    const userId = context.auth.uid;
+    const { gameId, reaction } = data;
+    
+    // 2. Validate input
+    if (!gameId || !reaction) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            'Missing required fields: gameId, reaction'
+        );
+    }
+    
+    const validReactions = ['fair', 'bs', 'brutal'];
+    if (!validReactions.includes(reaction)) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            'Invalid reaction. Must be: fair, bs, or brutal'
+        );
+    }
+    
+    const dateKey = getTodayKey();
+    const insightRef = db.ref(`daily-insights/${dateKey}/${gameId}`);
+    
+    // 3. Check if user already reacted
+    const userReactionRef = insightRef.child(`userReactions/${userId}`);
+    const existingReaction = await userReactionRef.once('value');
+    const previousReaction = existingReaction.val();
+    
+    // 4. Use transaction to update counts atomically
+    await insightRef.child('reactions').transaction((current) => {
+        const reactions = current || { fair: 0, bs: 0, brutal: 0 };
+        
+        // If changing reaction, decrement old one
+        if (previousReaction && previousReaction !== reaction) {
+            reactions[previousReaction] = Math.max(0, (reactions[previousReaction] || 0) - 1);
+        }
+        
+        // Increment new reaction (only if not same as previous)
+        if (previousReaction !== reaction) {
+            reactions[reaction] = (reactions[reaction] || 0) + 1;
+        }
+        
+        return reactions;
+    });
+    
+    // 5. Store user's reaction
+    await userReactionRef.set(reaction);
+    
+    // 6. Get updated counts
+    const updatedSnapshot = await insightRef.child('reactions').once('value');
+    const updatedReactions = updatedSnapshot.val() || { fair: 0, bs: 0, brutal: 0 };
+    
+    console.log(`Reaction ${reaction} from ${userId} for ${gameId} on ${dateKey}`);
+    
+    return {
+        success: true,
+        reactions: updatedReactions,
+        userReaction: reaction
+    };
+});
+
+/**
+ * Get user's existing reaction for today's insight
+ */
+exports.getInsightReaction = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        return { userReaction: null };
+    }
+    
+    const { gameId } = data;
+    if (!gameId) {
+        return { userReaction: null };
+    }
+    
+    const dateKey = getTodayKey();
+    const userReactionRef = db.ref(`daily-insights/${dateKey}/${gameId}/userReactions/${context.auth.uid}`);
+    const snapshot = await userReactionRef.once('value');
+    
+    return {
+        userReaction: snapshot.val() || null
+    };
+});
+
+// ============ MORNING REVIEW ============
+
+// Games supported for morning review (generate all, splice per user)
+const MORNING_REVIEW_GAMES = [
+    'wordle', 'connections', 'strands', 'mini',           // NYT Core
+    'linkedin-queens', 'linkedin-pinpoint',               // LinkedIn
+    'quordle', 'octordle', 'waffle', 'spelling-bee'       // Indies
+];
+
+// System prompt for morning review generation
+const MORNING_REVIEW_SYSTEM_PROMPT = `You are a charismatic puzzle hype person getting players excited for today's challenges. Your job is to BUILD ANTICIPATION without giving ANY strategic advantage.
+
+TONE:
+- Playful sports commentator energy
+- Tease difficulty, not content
+- Make people want to play, not help them win
+
+ABSOLUTE RULES - VIOLATING THESE RUINS THE EXPERIENCE:
+
+❌ NEVER REVEAL (for any game):
+- Themes, categories, topics, or subject matter
+- Word types (homophones, puns, rhymes, compound words, etc.)
+- Literary/cultural references (fairy tales, movies, books, etc.)
+- Letter patterns, positions, or characteristics
+- Number of anything (letters, groups, connections)
+- What makes something tricky (just say it IS tricky)
+
+✅ ONLY TALK ABOUT:
+- Overall difficulty feeling (breezy, crunchy, devious)
+- Your emotional reaction (this one made me smile, I groaned)
+- Time estimates (quick solve, might take a coffee break)
+- General vibes (satisfying, frustrating, clever)
+
+EXAMPLES - CONNECTIONS:
+
+BAD (reveals too much):
+- "Think literary, think fairy tales" ❌ (reveals theme)
+- "Watch for homophones" ❌ (reveals word type)
+- "One group is about food" ❌ (reveals category)
+- "The purple group is tricky wordplay" ❌ (reveals mechanism)
+
+GOOD (hypes without hints):
+- "The constructor woke up devious today. Bring your A-game."
+- "Smooth sailing until that last group. You'll know it when you see it."
+- "I needed two cups of coffee for this one. Fair warning."
+- "Deceptively simple looking. Don't get cocky."
+
+EXAMPLES - WORDLE:
+
+BAD:
+- "No tricky letters today" ❌ (strategic hint)
+- "Common word, you'll get it fast" ❌ (reveals word type)
+
+GOOD:
+- "Felt good about this one. Trust your instincts."
+- "Solid Wednesday challenge. Nothing unfair."
+
+EXAMPLES - STRANDS:
+
+BAD:
+- "Celebrity theme today" ❌ (reveals theme)
+- "Look for names" ❌ (strategic hint)
+
+GOOD:
+- "The spangram clicked for me early - satisfying solve."
+- "Took me a while to see the pattern. Stick with it."
+
+Keep each game to 1-2 SHORT sentences. Be fun, be vague, be hype.
+
+Return valid JSON only, no markdown.`;
+
+// System prompt for personal greeting generation
+const PERSONAL_GREETING_PROMPT = `You're a friendly puzzle coach checking in with a player. Based on their stats, write 1-2 SHORT sentences (max 25 words total).
+
+Pick ONE thing to highlight - the most interesting or motivating stat. Be warm, brief, specific.
+
+Good examples:
+- "47-day Wordle streak and counting. Locked in."
+- "Wordle in 2 yesterday? Show-off. Let's see an encore."
+- "Connections hasn't seen you in 12 days. Just saying."
+- "5 for 5 yesterday - flawless. Keep that energy."
+- "3 days from a 100-day Strands streak. No pressure."
+- "Back-to-back perfect Wordle scores. You're on fire."
+
+Bad examples (too long/generic/cheesy):
+- "Wow, you're doing amazing! Keep up the great work!"
+- "Your dedication is truly inspiring."
+- "Keep pushing forward on your puzzle journey!"
+
+If stats are sparse or uninteresting (no streaks, no recent activity), respond with exactly: DEFAULT
+
+Return ONLY the 1-2 sentences (or DEFAULT). No JSON, no quotes, no preamble.`;
+
+const DEFAULT_PERSONAL_GREETING = "Let's get the day off to a great start.";
+
+// Get date key for a specific date (today or yesterday)
+const getDateKey = (date) => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
+// Check if morning review is cached for a date
+async function getCachedMorningReview(dateKey) {
+    const cacheRef = db.ref(`morning-review/${dateKey}`);
+    const snapshot = await cacheRef.once('value');
+    const cached = snapshot.val();
+    
+    if (cached && cached.meta && cached.games) {
+        console.log(`Morning Review cache HIT: ${dateKey}`);
+        return cached;
+    }
+    console.log(`Morning Review cache MISS: ${dateKey}`);
+    return null;
+}
+
+// Store morning review in cache
+async function cacheMorningReview(dateKey, reviewData) {
+    const cacheRef = db.ref(`morning-review/${dateKey}`);
+    await cacheRef.set({
+        meta: reviewData.meta,
+        games: reviewData.games,
+        cachedAt: admin.database.ServerValue.TIMESTAMP
+    });
+    console.log(`Morning Review cached: ${dateKey}`);
+}
+
+// Check if personal greeting is cached for a user/date
+async function getCachedPersonalGreeting(dateKey, odometerId) {
+    const cacheRef = db.ref(`morning-review/${dateKey}/personal/${odometerId}`);
+    const snapshot = await cacheRef.once('value');
+    const cached = snapshot.val();
+    
+    if (cached) {
+        console.log(`Personal greeting cache HIT: ${dateKey}/${odometerId}`);
+        return cached;
+    }
+    console.log(`Personal greeting cache MISS: ${dateKey}/${odometerId}`);
+    return null;
+}
+
+// Store personal greeting in cache
+async function cachePersonalGreeting(dateKey, odometerId, greeting) {
+    const cacheRef = db.ref(`morning-review/${dateKey}/personal/${odometerId}`);
+    await cacheRef.set(greeting);
+    console.log(`Personal greeting cached: ${dateKey}/${odometerId}`);
+}
+
+// Generate personal greeting from user stats
+async function generatePersonalGreeting(apiKey, userStats) {
+    // DEBUG: Log what we received
+    console.log('Personal greeting - userStats received:', JSON.stringify(userStats));
+    
+    // Check if stats are too sparse to bother with AI
+    if (!userStats || Object.keys(userStats).length === 0) {
+        console.log('Personal greeting - returning default: stats empty or null');
+        return DEFAULT_PERSONAL_GREETING;
+    }
+    
+    // Check if there's anything interesting in the stats
+    const hasAnyStreak = Object.values(userStats).some(s => s && s.currentStreak > 1);
+    const hasYesterdayActivity = Object.values(userStats).some(s => s && s.yesterdayPlayed);
+    const summary = userStats._summary;
+    
+    console.log('Personal greeting check - hasAnyStreak:', hasAnyStreak, 'hasYesterdayActivity:', hasYesterdayActivity, 'summary:', JSON.stringify(summary));
+    
+    if (!hasAnyStreak && !hasYesterdayActivity && !summary?.longestActiveStreak) {
+        // Nothing interesting to comment on
+        return DEFAULT_PERSONAL_GREETING;
+    }
+    
+    const prompt = `Player stats:\n${JSON.stringify(userStats, null, 2)}`;
+    
+    const requestBody = {
+        model: AI_MODEL,
+        max_tokens: 100,
+        system: PERSONAL_GREETING_PROMPT,
+        messages: [{ role: 'user', content: prompt }]
+    };
+    
+    console.log('Generating personal greeting...');
+    
+    try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (!response.ok) {
+            console.error('Personal greeting API error:', response.status);
+            return DEFAULT_PERSONAL_GREETING;
+        }
+        
+        const result = await response.json();
+        
+        // Extract text content
+        const textContent = result.content
+            ?.filter(block => block.type === 'text')
+            ?.map(block => block.text)
+            ?.join(' ')?.trim() || '';
+        
+        console.log(`Personal greeting response: "${textContent.substring(0, 100)}"`);
+        
+        // Check for DEFAULT response
+        if (textContent === 'DEFAULT' || textContent.toUpperCase() === 'DEFAULT') {
+            return DEFAULT_PERSONAL_GREETING;
+        }
+        
+        // Clean up the response (remove quotes if wrapped)
+        let greeting = textContent.replace(/^["']|["']$/g, '').trim();
+        
+        // Validate length - if too long, fall back to default
+        if (greeting.length > 150) {
+            console.warn('Personal greeting too long, using default');
+            return DEFAULT_PERSONAL_GREETING;
+        }
+        
+        return greeting || DEFAULT_PERSONAL_GREETING;
+        
+    } catch (error) {
+        console.error('Personal greeting generation error:', error.message);
+        return DEFAULT_PERSONAL_GREETING;
+    }
+}
+
+// Generate morning review from AI
+async function generateMorningReviewFromAI(apiKey, dateStr) {
+    const prompt = `Today is ${dateStr}. Search for info about today's puzzles and create a SPOILER-FREE hype preview.
+
+CRITICAL: Your snippets must NOT help players solve puzzles. Only describe your FEELINGS about difficulty.
+
+Generate snippets for these games (return null if you can't find info):
+1. Wordle (NYT)
+2. Connections (NYT) - NEVER mention themes, categories, word types, or what connects anything
+3. Strands (NYT) - NEVER mention the theme or what words relate to
+4. Mini Crossword (NYT)
+5. Queens (LinkedIn)
+6. Pinpoint (LinkedIn) - NEVER mention the category or what the 5 clues relate to
+7. Quordle
+8. Octordle
+9. Waffle
+10. Spelling Bee (NYT) - NEVER mention the letters or pangram hints
+
+Remember: Talk about HOW HARD it felt, not WHAT it contains. "This one's tricky" = good. "Think about food" = bad.
+
+Return this exact JSON:
+{
+  "intro": "Energetic opening line (under 12 words, no puzzle hints)",
+  "vibe": "1-5 🌶️ emojis for overall difficulty",
+  "vibeLabel": "Mild | Medium | Spicy | Extra-Spicy | Volcanic",
+  "games": {
+    "wordle": "Difficulty vibe only, 1-2 sentences or null",
+    "connections": "Difficulty vibe only, 1-2 sentences or null",
+    "strands": "Difficulty vibe only, 1-2 sentences or null",
+    "mini": "Difficulty vibe only, 1-2 sentences or null",
+    "linkedin-queens": "Difficulty vibe only, 1-2 sentences or null",
+    "linkedin-pinpoint": "Difficulty vibe only, 1-2 sentences or null",
+    "quordle": "Difficulty vibe only, 1-2 sentences or null",
+    "octordle": "Difficulty vibe only, 1-2 sentences or null",
+    "waffle": "Difficulty vibe only, 1-2 sentences or null",
+    "spelling-bee": "Difficulty vibe only, 1-2 sentences or null"
+  },
+  "outro": "Motivational sendoff (under 8 words)"
+}`;
+
+    const requestBody = {
+        model: AI_MODEL,
+        max_tokens: 1500,
+        system: MORNING_REVIEW_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: prompt }],
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+    };
+    
+    console.log(`Generating Morning Review for ${dateStr}...`);
+    
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) {
+        const error = await response.text();
+        console.error('Anthropic API error:', response.status, error);
+        throw new Error('Failed to generate morning review. Please try again.');
+    }
+    
+    const result = await response.json();
+    
+    // Extract text content
+    const textContent = result.content
+        ?.filter(block => block.type === 'text')
+        ?.map(block => block.text)
+        ?.join('\n')?.trim() || '';
+    
+    console.log(`Morning Review raw response length: ${textContent.length}`);
+    
+    // Parse JSON from response (handle potential markdown code blocks)
+    let reviewJson;
+    try {
+        // Try to extract JSON from potential markdown code blocks
+        const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            reviewJson = JSON.parse(jsonMatch[0]);
+        } else {
+            throw new Error('No JSON found in response');
+        }
+    } catch (parseError) {
+        console.error('Failed to parse Morning Review JSON:', parseError.message);
+        console.error('Raw content:', textContent.substring(0, 500));
+        throw new Error('Failed to parse morning review response.');
+    }
+    
+    // Validate structure
+    if (!reviewJson.intro || !reviewJson.vibe || !reviewJson.games) {
+        throw new Error('Invalid morning review structure');
+    }
+    
+    console.log(`Morning Review generated with ${Object.keys(reviewJson.games).filter(g => reviewJson.games[g]).length} games`);
+    
+    return {
+        meta: {
+            intro: reviewJson.intro,
+            vibe: reviewJson.vibe,
+            vibeLabel: reviewJson.vibeLabel || 'Medium',
+            outro: reviewJson.outro || 'Go get \'em!'
+        },
+        games: reviewJson.games
+    };
+}
+
+/**
+ * Get morning review for today (or yesterday)
+ * Generates once, caches, then splices based on user's games
+ * Now includes personal greeting based on user stats
+ */
+exports.getMorningReview = functions.https.onCall(async (data, context) => {
+    // 1. Require authentication
+    if (!context.auth) {
+        throw new functions.https.HttpsError(
+            'unauthenticated',
+            'You must be signed in to view the morning review.'
+        );
+    }
+    
+    const { games, date, userStats } = data;
+    
+    // 2. Validate games array
+    if (!games || !Array.isArray(games) || games.length === 0) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            'You must provide a list of games.'
+        );
+    }
+    
+    // 3. Get user's odometerId for personal greeting cache
+    const userId = context.auth.uid;
+    let odometerId = null;
+    try {
+        const odometerSnap = await db.ref(`users-private/${userId}/odometer_id`).once('value');
+        odometerId = odometerSnap.val() || userId; // Fallback to uid if no odometerId
+    } catch (e) {
+        odometerId = userId;
+    }
+    
+    // 4. Determine which date to fetch (today or yesterday)
+    let targetDate = new Date();
+    let isYesterday = false;
+    
+    if (date === 'yesterday') {
+        targetDate.setDate(targetDate.getDate() - 1);
+        isYesterday = true;
+    }
+    
+    const dateKey = getDateKey(targetDate);
+    const dateStr = targetDate.toLocaleDateString('en-US', { 
+        weekday: 'long',
+        month: 'long', 
+        day: 'numeric', 
+        year: 'numeric' 
+    });
+    
+    // 5. Check cache first for game snippets
+    const cached = await getCachedMorningReview(dateKey);
+    
+    // 6. Get API key (needed for personal greeting even on cache hit)
+    const apiKey = getApiKey();
+    
+    if (cached) {
+        // Splice games based on user's shelf
+        const userGames = games
+            .filter(gameId => cached.games[gameId])
+            .map(gameId => ({
+                id: gameId,
+                snippet: cached.games[gameId]
+            }));
+        
+        // Generate or get cached personal greeting
+        let personalGreeting = DEFAULT_PERSONAL_GREETING;
+        if (userStats && apiKey) {
+            // Check personal greeting cache first
+            const cachedGreeting = await getCachedPersonalGreeting(dateKey, odometerId);
+            if (cachedGreeting) {
+                personalGreeting = cachedGreeting;
+            } else {
+                // Generate and cache
+                personalGreeting = await generatePersonalGreeting(apiKey, userStats);
+                await cachePersonalGreeting(dateKey, odometerId, personalGreeting);
+            }
+        }
+        
+        // Track analytics
+        try {
+            await db.ref('morning-review-analytics').push({
+                userId: context.auth.uid,
+                date: dateKey,
+                gamesRequested: games.length,
+                gamesReturned: userGames.length,
+                hasPersonalGreeting: personalGreeting !== DEFAULT_PERSONAL_GREETING,
+                fromCache: true,
+                isYesterday: isYesterday,
+                timestamp: admin.database.ServerValue.TIMESTAMP
+            });
+        } catch (e) {
+            console.warn('Morning Review analytics failed:', e);
+        }
+        
+        return {
+            date: dateKey,
+            dateDisplay: dateStr,
+            personalGreeting: personalGreeting,
+            intro: cached.meta.intro,
+            vibe: cached.meta.vibe,
+            vibeLabel: cached.meta.vibeLabel,
+            games: userGames,
+            outro: cached.meta.outro,
+            cached: true,
+            isYesterday: isYesterday
+        };
+    }
+    
+    // 7. For yesterday, if not cached, we can't generate (puzzle info may be stale)
+    if (isYesterday) {
+        throw new functions.https.HttpsError(
+            'not-found',
+            'Yesterday\'s morning review is not available.'
+        );
+    }
+    
+    // 8. Need API key to generate
+    if (!apiKey) {
+        throw new functions.https.HttpsError(
+            'failed-precondition',
+            'AI features are not configured. Please contact support.'
+        );
+    }
+    
+    // 9. Generate the morning review
+    try {
+        const reviewData = await generateMorningReviewFromAI(apiKey, dateStr);
+        
+        // 10. Cache game snippets for other users
+        await cacheMorningReview(dateKey, reviewData);
+        
+        // 11. Generate and cache personal greeting
+        let personalGreeting = DEFAULT_PERSONAL_GREETING;
+        if (userStats) {
+            personalGreeting = await generatePersonalGreeting(apiKey, userStats);
+            await cachePersonalGreeting(dateKey, odometerId, personalGreeting);
+        }
+        
+        // 12. Splice games based on user's shelf
+        const userGames = games
+            .filter(gameId => reviewData.games[gameId])
+            .map(gameId => ({
+                id: gameId,
+                snippet: reviewData.games[gameId]
+            }));
+        
+        // 13. Track analytics
+        try {
+            await db.ref('morning-review-analytics').push({
+                userId: context.auth.uid,
+                date: dateKey,
+                gamesRequested: games.length,
+                gamesReturned: userGames.length,
+                hasPersonalGreeting: personalGreeting !== DEFAULT_PERSONAL_GREETING,
+                fromCache: false,
+                isYesterday: false,
+                timestamp: admin.database.ServerValue.TIMESTAMP
+            });
+        } catch (e) {
+            console.warn('Morning Review analytics failed:', e);
+        }
+        
+        // 14. Return
+        return {
+            date: dateKey,
+            dateDisplay: dateStr,
+            personalGreeting: personalGreeting,
+            intro: reviewData.meta.intro,
+            vibe: reviewData.meta.vibe,
+            vibeLabel: reviewData.meta.vibeLabel,
+            games: userGames,
+            outro: reviewData.meta.outro,
+            cached: false,
+            isYesterday: false
+        };
+        
+    } catch (error) {
+        console.error('Morning Review generation error:', error.message);
+        throw new functions.https.HttpsError(
+            'internal',
+            error.message || 'Failed to generate morning review. Please try again.'
+        );
+    }
+});
+
 // ============ STRIPE FUNCTIONS ============
 
 // Lazy-initialize Stripe to avoid errors when config isn't set
@@ -631,7 +1453,7 @@ exports.dailyCacheCleanup = functions.pubsub
     .schedule('0 3 * * *')
     .timeZone('America/New_York')
     .onRun(async (context) => {
-        console.log('Running scheduled hint cache cleanup...');
+        console.log('Running scheduled cache cleanup...');
         
         const today = new Date();
         const yesterday = new Date(today);
@@ -640,28 +1462,48 @@ exports.dailyCacheCleanup = functions.pubsub
         const todayKey = getTodayKey();
         const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
         
-        // Get all cache date keys
+        // ============ HINT CACHE (keep 2 days) ============
         const cacheRef = db.ref('hint-cache');
         const snapshot = await cacheRef.once('value');
         const cacheData = snapshot.val();
         
-        if (!cacheData) {
-            console.log('No cache data to clean');
-            return null;
-        }
-        
-        // Delete any date key that isn't today or yesterday
-        const keysToKeep = [todayKey, yesterdayKey];
-        const deletedKeys = [];
-        
-        for (const dateKey of Object.keys(cacheData)) {
-            if (!keysToKeep.includes(dateKey)) {
-                await db.ref(`hint-cache/${dateKey}`).remove();
-                deletedKeys.push(dateKey);
+        let hintDeletedKeys = [];
+        if (cacheData) {
+            const keysToKeep = [todayKey, yesterdayKey];
+            
+            for (const dateKey of Object.keys(cacheData)) {
+                if (!keysToKeep.includes(dateKey)) {
+                    await db.ref(`hint-cache/${dateKey}`).remove();
+                    hintDeletedKeys.push(dateKey);
+                }
             }
         }
         
-        console.log(`Cache cleanup complete. Kept: ${keysToKeep.join(', ')}. Deleted: ${deletedKeys.length > 0 ? deletedKeys.join(', ') : 'none'}`);
+        // ============ MORNING REVIEW (keep 7 days) ============
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        
+        const morningReviewRef = db.ref('morning-review');
+        const mrSnapshot = await morningReviewRef.once('value');
+        const mrData = mrSnapshot.val();
+        
+        let mrDeletedKeys = [];
+        if (mrData) {
+            for (const dateKey of Object.keys(mrData)) {
+                // Parse date key (YYYY-MM-DD)
+                const [year, month, day] = dateKey.split('-').map(Number);
+                const entryDate = new Date(year, month - 1, day);
+                
+                if (entryDate < weekAgo) {
+                    await db.ref(`morning-review/${dateKey}`).remove();
+                    mrDeletedKeys.push(dateKey);
+                }
+            }
+        }
+        
+        console.log(`Cache cleanup complete.`);
+        console.log(`  Hint cache - Kept: ${todayKey}, ${yesterdayKey}. Deleted: ${hintDeletedKeys.length > 0 ? hintDeletedKeys.join(', ') : 'none'}`);
+        console.log(`  Morning review - Kept last 7 days. Deleted: ${mrDeletedKeys.length > 0 ? mrDeletedKeys.join(', ') : 'none'}`);
         return null;
     });
 
@@ -944,122 +1786,85 @@ async function recordAIHelpUsage(userId) {
 }
 
 /**
- * AI Help System Prompt
+ * AI Help System Prompt v2.0
+ * Updated: January 29, 2026
+ * Comprehensive coverage of all Game Shelf features
  */
-const AI_HELP_SYSTEM_PROMPT = `You are the Game Shelf Help Assistant. You ONLY help with:
-1. Using the Game Shelf app (features, navigation, troubleshooting)
-2. The games Game Shelf supports (strategies, tips, how they work)
+const AI_HELP_SYSTEM_PROMPT = `You are the Game Shelf Help Assistant. Help with the Game Shelf app and supported puzzle games.
 
-SUPPORTED GAMES (you can answer questions about these):
-NYT Games: Wordle, Connections, Strands, Spelling Bee, Mini Crossword, Letterboxed, Tiles, Vertex
-NYT Games (App): Sudoku, Queens, Tango, Pinpoint, Crossclimb, Zip
-LinkedIn: Pinpoint, Queens, Crossclimb, Tango
-Other: Quordle, Octordle, Worldle, Globle, Tradle, Framed, Moviedle, Posterdle, Bandle, Spotle, Heardle, Box Office Game, Timeguessr
-Game Shelf Originals: Quotle, Rungs, Slate, Word Boxing
+CRITICAL - NAVIGATION BUTTONS:
+When your answer involves going somewhere or doing something, include ONE action button at the END.
+Format: [ACTION:functionName:param|Button Label]
+
+Available actions:
+- switchTab:home/games/stats/hub/share - Main tabs
+- switchGamesTab:shelf/discover - Games subtabs  
+- switchStatsTab:overview/bygame - Stats subtabs
+- switchBattlesTab:battles/friends/activity - Battles subtabs
+- switchShareTab:today/compose/history - Share subtabs
+- showCreateBattle - Create Battle sheet
+- showAccountSheet - Sign In / Account
+- showWalletSheet - Wallet
+- showAddFriendSheet - Add Friend
+- showFeedbackSheet - Feedback form
+- showSuggestGameSheet - Suggest a Game
+- openSettings - Settings menu
+
+EXAMPLES WITH ACTIONS:
+User: "how do I add friends"
+→ "Share your friend link: Battles tab → Friends → Add Friend → Share Link. When they tap it, you're connected!
+
+[ACTION:showAddFriendSheet|Add Friend →]"
+
+User: "where are my stats"  
+→ "Stats tab shows your performance. Overview has totals, By Game breaks it down per game.
+
+[ACTION:switchStatsTab:overview|View Stats →]"
+
+User: "create a battle"
+→ "Battles tab → Create. Name it, pick games, set duration and type, then share the invite link!
+
+[ACTION:showCreateBattle|Create Battle →]"
+
+User: "how do I share results"
+→ "Long-press any game card → Share. Or use Share tab → Today for all games at once.
+
+[ACTION:switchShareTab:today|Share Results →]"
 
 RESPONSE STYLE:
-- Lead with the action: "Tap X, then Y" not "You can find X..."
-- Use numbered steps for multi-step tasks (max 5 steps)
-- Be concise: 2-4 sentences or 3-5 steps max
-- If the question is vague, ask ONE clarifying question before guessing
+- Lead with action: "Tap X → Y" not "You can find..."
+- 2-4 sentences max, or 3-5 numbered steps
+- Include action button when user wants to DO something
+- No action button for pure info questions
 
-APP NAVIGATION:
-- Bottom tabs: Home, Games, Stats, Battles, Share
-- Games tab subtabs: Shelf | Discover
-- Stats tab subtabs: Overview | By Game  
-- Battles tab subtabs: Battles | Friends | Activity
-- Share tab subtabs: Today | Compose | History
+APP STRUCTURE:
+Tabs: Home | Games | Stats | Battles | Share
+Menu (☰): Wallet, Account, Settings, Help, Rewards
 
-STEP-BY-STEP GUIDES:
+KEY FEATURES:
+- Record games: Copy share text from puzzle → return to Game Shelf → tap "Paste Activity"
+- Import stats: Same flow! Copy stats or screenshot from any game → tap "Paste Activity" → auto-detected
+- Manual entry: Long-press "Paste Activity" button
+- Game cards: Tap = play, Long-press = options (stats, share, hint, remove)
+- Add games: Games tab → Discover → tap + on any game
+- Streaks: Consecutive days playing. Miss a day = reset to 0.
+- AI Hints: 5 tokens. Game card → 💡 or long-press → Get Hint. Levels 1-10.
+- Battles: Competitions with friends. Types: Total Score, Streak Challenge, Most Wins, Perfect Hunter.
+- Friends: Battles tab → Friends. Share your link to connect instantly.
+- Tokens: Earned free through play. Coins: Premium, purchased.
 
-**Create a Battle:**
-1. Tap Battles tab → "Battles" subtab
-2. Tap "Create Battle"
-3. Name it, select games, set duration (3-7 days recommended)
-4. Choose type (Total Score is most popular)
-5. Tap Create → Share the invite link
+SUPPORTED GAMES (36+):
+NYT: Wordle, Connections, Strands, Spelling Bee, Mini, Letterboxed, Tiles
+LinkedIn: Queens, Pinpoint, Crossclimb, Tango
+Other: Quordle, Octordle, Worldle, Globle, Framed, Waffle, Bandle
+Originals: Quotle, Rungs, Slate, Word Boxing
 
-**Add a Friend:**
-1. Tap Battles tab → "Friends" subtab
-2. Tap + or "Add Friend"
-3. Enter their 8-character code, OR share your code (shown at top)
-
-**Get a Hint:**
-1. Find the game card on Home or Games tab
-2. Tap the 💡 lightbulb icon
-3. Adjust level (1=vague, 10=answer), tap Get Hint
-Costs 5 tokens. Need to be signed in.
-
-**Record a Game:**
-1. Finish your puzzle, tap its Share button to copy
-2. Return to Game Shelf
-3. Tap "Record Game" on the Home tab
-If that fails: Long-press Record Game for manual entry.
-
-**Remove a Game:**
-Long-press the game card → "Remove from Shelf"
-(Stats are kept - re-add anytime from Games → Discover)
-
-**Add a Game:**
-Games tab → Discover subtab → Browse or search → Tap + to add
-
-**Share Results:**
-- Single game: Long-press game card → Share
-- All today's games: Share tab → Today subtab → Quick Share
-
-**Check Streaks:**
-- Quick: Look at 🔥 number on game cards
-- Details: Long-press game card → Stats
-
-CORE INFO:
-- 36+ games supported (NYT, LinkedIn, geography, Game Shelf originals)
-- Streaks: Consecutive days. Miss a day = reset to 0.
-- Tokens: Free currency earned through play. Start with 50.
-- Coins: Purchased currency for premium features.
-
-COMMON FIXES:
-- iOS clipboard: Tap "Allow" when prompted
-- Streak didn't update: Check History to confirm it recorded
-- Game not recognized: Use original share text, no extra text
-
-HANDLING VAGUE QUESTIONS:
-If user asks something unclear like "how do I create a custom battle", ask:
-"What would you like to customize? For example:
-- Which games to include?
-- How long it lasts?
-- The scoring type?"
-
-FEW-SHOT EXAMPLES:
-
-User: "how do battles work"
-Good: "Brain Battles are competitions with friends over multiple days. Everyone plays the same games, scores are compared, winner takes the prize pool! To start: Battles tab → Create Battle."
-
-User: "custom battle"
-Good: "What would you like to customize about your battle? I can help with:
-- Choosing specific games
-- Setting the duration
-- Picking a scoring type (Total Score, Most Wins, etc.)"
-
-User: "hints not working"
-Good: "To get hints, you need:
-1. Be signed in (Menu → Account)
-2. Have 5+ tokens (check Wallet)
-3. Under rate limit (20/hour, 50/day)
-Which might be the issue?"
-
-User: "any tips for Connections?"
-Good: "Start by looking for the most obvious category first - often there's one that jumps out. Watch for trick words that could fit multiple categories. Save your mistakes for the harder groups. If stuck, look for less common meanings of words."
-
-User: "what's the weather"
-Good: "I can only help with Game Shelf and the puzzle games it supports. For weather, try a general assistant or weather app!"
-
-BOUNDARIES - FOLLOW THESE STRICTLY:
-- For TODAY'S puzzle answers/solutions: "I can't give today's answers, but use the 💡 Hints feature on the game card for help!"
-- For game strategy/tips (supported games): Answer helpfully - this is encouraged!
-- For games NOT in the supported list: "That game isn't currently supported by Game Shelf. You can suggest it via Help → Suggest a Game!"
-- For bugs/issues: "Tap Help → Feedback so we can investigate"
-- For off-topic questions (not about Game Shelf or supported games): "I'm the Game Shelf assistant, so I can only help with the app and the puzzle games it supports. For other questions, try a general assistant!"
-- If unsure about something in Game Shelf: Say so, suggest Feedback`;
+BOUNDARIES:
+- Puzzle answers: "Use the 💡 Hints feature on the game card! [ACTION:switchTab:home|Go to Home →]"
+- Game strategy: Help freely - encouraged!
+- Unsupported game: "Request it via Suggest a Game! [ACTION:showSuggestGameSheet|Suggest Game →]"
+- Bugs: "Please send feedback. [ACTION:showFeedbackSheet|Send Feedback →]"
+- Off-topic: "I only help with Game Shelf and supported puzzle games."`;
 
 /**
  * Build contextual prompt with user context and FAQ content
