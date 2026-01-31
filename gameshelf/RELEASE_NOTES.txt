@@ -1,3 +1,130 @@
+Game Shelf PWA v1.4.4 Release Notes
+=====================================
+
+Release Date: January 30, 2026
+
+WHAT'S NEW POPUP REMOVED:
+-------------------------
+
+1. LESS INTRUSIVE UPDATE NOTIFICATIONS:
+   - What's New no longer auto-pops up when you log in
+   - A badge will still appear on the Help button when there's an update
+   - Click Help → What's New to see changes at your convenience
+
+---
+
+Game Shelf PWA v1.4.3 Release Notes
+=====================================
+
+Release Date: January 30, 2026
+
+HELP BUTTON DEFAULT CHANGE:
+---------------------------
+
+1. HELP BUTTON NOW ON BY DEFAULT:
+   - New users will see the floating help button (❓) by default
+   - Previously defaulted to hidden
+   - Users can still toggle it off in Settings if preferred
+
+Also includes Desktop Menu Fix from v1.4.2.
+
+---
+
+Game Shelf PWA v1.4.2 Release Notes
+=====================================
+
+Release Date: January 30, 2026
+
+DESKTOP MENU FIX:
+-----------------
+
+1. SETTINGS MENU POSITIONING ON DESKTOP:
+   - On screens 900px+ wide, the settings menu now appears beside the app
+   - Menu slides in to the left of the centered 480px container
+   - No longer covers the main app content on desktop
+   - Overlay only dims the app area, not the entire screen
+   - Falls back to standard slide-over on narrower screens (600-900px)
+
+---
+
+Game Shelf PWA v1.4.1 Release Notes
+=====================================
+
+Release Date: January 30, 2026
+
+LEGAL & TERMS UPDATE:
+---------------------
+
+1. IMPLICIT TERMS ACKNOWLEDGMENT:
+   - Added "By continuing, you agree to our Terms of Service and Privacy Policy"
+   - Displayed on the setup welcome screen
+   - Links to gameshelf.co/terms and gameshelf.co/privacy
+   - Low-friction: continuing through setup = acceptance
+
+2. LEGAL SECTION IN SETTINGS MENU:
+   - Added new "Legal" section at bottom of settings menu
+   - Links to Terms of Service and Privacy Policy
+   - Added third-party disclaimer: "Game Shelf is not affiliated with 
+     The New York Times, LinkedIn, or any game publisher."
+
+3. AI HINT DISCLAIMER:
+   - Added disclaimer at bottom of hint sheet
+   - "Hints are AI-generated and may not always be accurate."
+   - "Game Shelf is not affiliated with game publishers."
+
+Note: Terms and Privacy Policy documents created but need to be hosted at:
+- gameshelf.co/terms
+- gameshelf.co/privacy
+
+---
+
+Game Shelf PWA v1.4.0 Release Notes
+=====================================
+
+Release Date: January 30, 2026
+
+URL STRUCTURE CHANGE:
+---------------------
+
+**BREAKING CHANGE**: Game Shelf PWA has moved from root to /app/
+
+Old URL: gameshelf.co/
+New URL: gameshelf.co/app/
+
+Changes in this release:
+1. PWA now lives at /app/ subfolder
+2. Landing page moved to root (/) for marketing
+3. Updated manifest.json with new scope and start_url
+4. Updated FAQ install instructions to reference /app/
+5. Service worker updated for new location
+
+Note: Existing PWA installations may need to be reinstalled from the new URL.
+
+---
+
+Game Shelf PWA v1.3.53 Release Notes
+=====================================
+
+Release Date: January 30, 2026
+
+DEBUG BUILD:
+------------
+
+1. MORNING REVIEW DEBUG LOGGING:
+   Added extensive console logging to diagnose why personalized greetings
+   aren't being generated. 
+   
+   Open browser DevTools console and trigger Morning Review to see:
+   - What game IDs are being requested
+   - What keys exist in appData.stats
+   - Full appData.stats contents
+   - Yesterday's history data
+   - Final userStats object being sent to Firebase
+   
+   Look for log lines starting with "🌅 [MR Debug]"
+
+---
+
 Game Shelf PWA v1.3.51 Release Notes
 =====================================
 
