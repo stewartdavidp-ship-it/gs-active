@@ -4,16 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Game Shelf Command Center</title>
-    <meta name="version" content="8.3.6">
+    <meta name="version" content="8.6.0">
     <meta name="gs-app-id" content="management">
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; }
@@ -27,7 +28,7 @@
     <div id="root"><div style="display:flex;align-items:center;justify-content:center;min-height:100vh;"><div style="text-align:center;"><div style="margin-bottom:20px;"><svg viewBox="0 0 100 100" width="64" height="64" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gsLoadGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#667eea"/><stop offset="100%" style="stop-color:#764ba2"/></linearGradient></defs><rect x="5" y="5" width="90" height="90" rx="20" fill="url(#gsLoadGrad)"/><g transform="rotate(-12, 35, 50)"><rect x="15" y="28" width="28" height="36" rx="4" fill="white"/><circle cx="43" cy="46" r="6" fill="white"/><text x="29" y="54" font-family="Arial" font-size="20" font-weight="bold" fill="#667eea" text-anchor="middle">G</text></g><g transform="rotate(12, 65, 50)"><rect x="57" y="28" width="28" height="36" rx="4" fill="rgba(255,255,255,0.9)"/><circle cx="57" cy="46" r="6" fill="url(#gsLoadGrad)"/><text x="71" y="54" font-family="Arial" font-size="20" font-weight="bold" fill="#764ba2" text-anchor="middle">S</text></g></svg></div>Loading...</div></div></div>
 
     <script type="text/babel">
-    console.log('Command Center v8.3.6 starting...');
+    console.log('Command Center v8.6.0 starting...');
     
     // =========================================================================
     // FIREBASE CONFIG
@@ -108,29 +109,45 @@
     function findAllVersionStrings(content) {
         const versions = [];
         
-        // Helper to check if a match is inside a comment
-        function isInComment(matchIndex) {
+        // Helper to check if a match is inside a comment or code example
+        function shouldSkip(matchIndex, matchText) {
+            // Get surrounding context (200 chars before, line content)
+            const before = content.substring(Math.max(0, matchIndex - 200), matchIndex);
             const lineStart = content.lastIndexOf('\n', matchIndex) + 1;
-            const lineContent = content.substring(lineStart, matchIndex);
-            // Skip if line starts with // or * (comment) or contains Pattern/Example keywords
-            return /^\s*(\/\/|\*|#)/.test(lineContent) || /Pattern|Example|e\.g\.|like/i.test(lineContent);
+            const lineEnd = content.indexOf('\n', matchIndex);
+            const lineContent = content.substring(lineStart, lineEnd === -1 ? matchIndex + 100 : lineEnd);
+            
+            // Skip if inside a comment block or pattern documentation
+            if (/^\s*(\/\/|\*|#)/.test(lineContent)) return true;
+            if (/Pattern|Example|e\.g\.|like|→|-->/i.test(lineContent)) return true;
+            
+            // Skip if the match looks like documentation (Pattern 1:, Pattern 2:, etc.)
+            if (/Pattern\s*\d+|\/\/\s*Pattern/i.test(before.slice(-80))) return true;
+            
+            // Skip if this appears to be inside function code that manipulates versions
+            // (i.e., the fixVersionsInContent function, version bump examples, etc.)
+            if (/fixVersions|incrementVersion|bumpVersion|parseVersion/i.test(before.slice(-150))) return true;
+            
+            // Skip template literal patterns - these are code, not actual versions
+            if (matchText && matchText.includes('${')) return true;
+            if (matchText && matchText.includes('targetVersion')) return true;
+            
+            // Skip if it's a version format example like "1.0.0 → 1.0.1"
+            if (/\d+\.\d+\.\d+\s*→/.test(lineContent)) return true;
+            
+            return false;
         }
         
         // Meta tag versions
         const metaMatches = content.matchAll(/<meta\s+[^>]*name=["']version["'][^>]*content=["']([^"']+)["'][^>]*>/gi);
         for (const m of metaMatches) {
-            // Skip if the content contains template literal syntax
-            if (m[1].includes('${') || m[1].includes('targetVersion')) continue;
-            // Skip if inside a comment
-            if (isInComment(m.index)) continue;
+            if (shouldSkip(m.index, m[1])) continue;
             versions.push({ source: 'meta tag', value: m[1], line: content.substring(0, m.index).split('\n').length });
         }
         // Also check reverse order: content before name
         const metaMatches2 = content.matchAll(/<meta\s+[^>]*content=["']([^"']+)["'][^>]*name=["']version["'][^>]*>/gi);
         for (const m of metaMatches2) {
-            if (m[1].includes('${') || m[1].includes('targetVersion')) continue;
-            // Skip if inside a comment
-            if (isInComment(m.index)) continue;
+            if (shouldSkip(m.index, m[1])) continue;
             versions.push({ source: 'meta tag', value: m[1], line: content.substring(0, m.index).split('\n').length });
         }
         
@@ -139,34 +156,22 @@
         for (const m of jsMatches) {
             // Skip if it's inside the GameShelf integration module (those are module versions, not app versions)
             const before = content.substring(Math.max(0, m.index - 200), m.index);
-            if (!before.includes('GAMESHELF_VERSION') && !before.includes('Integration Module')) {
-                // Skip template literals and code examples
-                if (m[2].includes('${') || m[2].includes('targetVersion')) continue;
-                // Skip if inside a comment
-                if (isInComment(m.index)) continue;
-                versions.push({ source: `JS: ${m[1]}`, value: m[2], line: content.substring(0, m.index).split('\n').length });
-            }
+            if (before.includes('GAMESHELF_VERSION') || before.includes('Integration Module')) continue;
+            if (shouldSkip(m.index, m[2])) continue;
+            versions.push({ source: `JS: ${m[1]}`, value: m[2], line: content.substring(0, m.index).split('\n').length });
         }
         
         // Footer versions - look for patterns like "v1.0.0 •" or ">v1.0.0<"
-        // But skip anything in code comments or template literals
         const footerMatches = content.matchAll(/[>\s]v(\d+\.\d+\.\d+)\s*[•<·]/g);
         for (const m of footerMatches) {
-            // Check if this is inside a comment or code example
-            const lineStart = content.lastIndexOf('\n', m.index) + 1;
-            const lineContent = content.substring(lineStart, m.index);
-            // Skip if line starts with // or * (comment) or contains Pattern or Example
-            if (/^\s*(\/\/|\*|#)/.test(lineContent) || /Pattern|Example|e\.g\.|like/i.test(lineContent)) continue;
+            if (shouldSkip(m.index, m[1])) continue;
             versions.push({ source: 'footer/visible', value: m[1], line: content.substring(0, m.index).split('\n').length });
         }
         
         // Version in about/info sections
         const aboutMatches = content.matchAll(/Version:?\s*<\/?\w*>?\s*v?(\d+\.\d+\.\d+)/gi);
         for (const m of aboutMatches) {
-            // Skip code comments
-            const lineStart = content.lastIndexOf('\n', m.index) + 1;
-            const lineContent = content.substring(lineStart, m.index);
-            if (/^\s*(\/\/|\*|#)/.test(lineContent) || /Pattern|Example/i.test(lineContent)) continue;
+            if (shouldSkip(m.index, m[1])) continue;
             versions.push({ source: 'about/info text', value: m[1], line: content.substring(0, m.index).split('\n').length });
         }
         
@@ -312,14 +317,14 @@
             id: 'gameshelf', name: 'Game Shelf', icon: 'gs-logo',
             appType: 'public',
             targetPath: 'index.html', swPath: 'sw.js', hasServiceWorker: true,
-            subPath: '',
+            subPath: 'app',
             repos: { test: '', prod: '' },
             versions: { test: '', prod: '' },
             repoPatterns: {
                 test: ['gameshelftest', 'gameshelf-test'],
                 prod: ['gameshelf']
             },
-            detectionPatterns: ['<title>game\\s*shelf', 'gameshelfdata', 'game.shelf.pwa', '#setup-welcome']
+            detectionPatterns: ['gameshelfdata', 'game.shelf.pwa', '#setup-welcome', 'APP_VERSION']
         },
         beta: {
             id: 'beta', name: 'Beta Hub', icon: '🚀',
@@ -390,14 +395,40 @@
             id: 'landing', name: 'Landing Page', icon: '📣',
             appType: 'public',
             targetPath: 'index.html', swPath: '', hasServiceWorker: false,
-            subPath: '',
+            subPath: '',  // Root of gameshelf repo
             repos: { test: '', prod: '' },
             versions: { test: '', prod: '' },
             repoPatterns: {
-                test: ['game-shelf-landing-test'],
-                prod: ['game-shelf-landing']
+                test: ['gameshelftest'],
+                prod: ['gameshelf']
             },
-            detectionPatterns: ['<title>game\\s*shelf.*track', 'game-shelf-landing', 'track.*every.*daily.*puzzle']
+            detectionPatterns: ['Track Every Daily Puzzle', 'track.*every.*daily.*puzzle', 'Join the Beta', 'cta-button']
+        },
+        terms: {
+            id: 'terms', name: 'Terms of Service', icon: '📋',
+            appType: 'public',
+            targetPath: 'index.html', swPath: '', hasServiceWorker: false,
+            subPath: 'terms',
+            repos: { test: '', prod: '' },
+            versions: { test: '', prod: '' },
+            repoPatterns: {
+                test: ['gameshelftest'],
+                prod: ['gameshelf']
+            },
+            detectionPatterns: ['gameshelf-terms', '<title>Terms of Service', 'Terms of Service.*Game Shelf']
+        },
+        privacy: {
+            id: 'privacy', name: 'Privacy Policy', icon: '🔒',
+            appType: 'public',
+            targetPath: 'index.html', swPath: '', hasServiceWorker: false,
+            subPath: 'privacy',
+            repos: { test: '', prod: '' },
+            versions: { test: '', prod: '' },
+            repoPatterns: {
+                test: ['gameshelftest'],
+                prod: ['gameshelf']
+            },
+            detectionPatterns: ['gameshelf-privacy', '<title>Privacy Policy', 'Privacy Policy.*Game Shelf']
         },
         
         // ===== INTERNAL TOOLS (Prod only) =====
@@ -826,12 +857,21 @@
                 ]
             },
             {
+                id: 'landing',
+                patterns: [
+                    /track\s*every\s*daily\s*puzzle/i,
+                    /join\s*the\s*beta/i,
+                    /cta-button/i,
+                    /<h1[^>]*>GAME\s*SHELF<\/h1>/i
+                ]
+            },
+            {
                 id: 'gameshelf',
                 patterns: [
-                    /<title>game\s*shelf/i,
                     /gameshelfdata/i,
                     /game\.shelf\.pwa/i,
-                    /#setup-welcome/i
+                    /#setup-welcome/i,
+                    /APP_VERSION\s*=/i
                 ]
             },
             {
@@ -953,6 +993,11 @@
         return `https://${owner}.github.io/${repoName}/`;
     }
     
+    // Helper to get effective subPath (falls back to defaults if stored value is empty)
+    function getEffectiveSubPath(app, appId) {
+        return app.subPath || DEFAULT_APP_DEFINITIONS[appId]?.subPath || '';
+    }
+    
     // Helper to get full file path in repo (prepends subPath if needed)
     function getRepoFilePath(app, filename) {
         if (app.subPath) {
@@ -1036,6 +1081,25 @@
                         ...options.headers
                     }
                 });
+                
+                // Track rate limit from response headers
+                const remaining = response.headers.get('X-RateLimit-Remaining');
+                const limit = response.headers.get('X-RateLimit-Limit');
+                const resetTime = response.headers.get('X-RateLimit-Reset');
+                
+                if (remaining !== null) {
+                    this.rateLimit = { remaining: parseInt(remaining), limit: parseInt(limit), resetTime: parseInt(resetTime) * 1000 };
+                    if (parseInt(remaining) < 100) {
+                        console.warn(`⚠️ GitHub API rate limit low: ${remaining}/${limit} remaining. Resets at ${new Date(this.rateLimit.resetTime).toLocaleTimeString()}`);
+                    }
+                }
+                
+                // Handle rate limit exceeded
+                if (response.status === 403 && remaining === '0') {
+                    const resetDate = new Date(parseInt(resetTime) * 1000);
+                    throw new Error(`GitHub API rate limit exceeded. Resets at ${resetDate.toLocaleTimeString()}. Please wait and try again.`);
+                }
+                
                 if (!response.ok) {
                     const error = await response.json().catch(() => ({}));
                     console.error('GitHub API Error:', {
@@ -1051,6 +1115,11 @@
                 console.error('Request failed:', url, e);
                 throw e;
             }
+        }
+        
+        // Get current rate limit status
+        getRateLimit() {
+            return this.rateLimit || { remaining: null, limit: null, resetTime: null };
         }
         
         async listRepos() {
@@ -1394,6 +1463,102 @@
             return { success: false, error: 'Timeout waiting for deployment', status: lastStatus };
         }
         
+        // Get recent workflow runs for a repo
+        async getWorkflowRuns(repo, options = {}) {
+            const [owner, repoName] = repo.split('/');
+            const params = new URLSearchParams();
+            if (options.per_page) params.append('per_page', options.per_page);
+            if (options.branch) params.append('branch', options.branch);
+            if (options.event) params.append('event', options.event);
+            if (options.status) params.append('status', options.status);
+            
+            const queryString = params.toString();
+            const endpoint = `/repos/${owner}/${repoName}/actions/runs${queryString ? '?' + queryString : ''}`;
+            
+            try {
+                const result = await this.request(endpoint);
+                return result.workflow_runs || [];
+            } catch (e) {
+                console.error('Failed to get workflow runs:', e);
+                return [];
+            }
+        }
+        
+        // Get a specific workflow run
+        async getWorkflowRun(repo, runId) {
+            const [owner, repoName] = repo.split('/');
+            try {
+                return await this.request(`/repos/${owner}/${repoName}/actions/runs/${runId}`);
+            } catch (e) {
+                console.error('Failed to get workflow run:', e);
+                return null;
+            }
+        }
+        
+        // Get workflow run logs URL (returns URL, not content - logs require redirect)
+        async getWorkflowRunLogsUrl(repo, runId) {
+            const [owner, repoName] = repo.split('/');
+            return `https://github.com/${owner}/${repoName}/actions/runs/${runId}`;
+        }
+        
+        // Monitor a workflow run until completion
+        async waitForWorkflowRun(repo, runId, maxWaitMs = 300000, onStatus = null) {
+            const startTime = Date.now();
+            let lastStatus = null;
+            
+            while (Date.now() - startTime < maxWaitMs) {
+                const run = await this.getWorkflowRun(repo, runId);
+                
+                if (run && run.status !== lastStatus) {
+                    lastStatus = run.status;
+                    if (onStatus) onStatus(run);
+                }
+                
+                // Terminal states
+                if (run?.status === 'completed') {
+                    return { 
+                        success: run.conclusion === 'success',
+                        conclusion: run.conclusion, // success, failure, cancelled, skipped
+                        run,
+                        logsUrl: await this.getWorkflowRunLogsUrl(repo, runId)
+                    };
+                }
+                
+                // Wait 5 seconds before checking again
+                await new Promise(r => setTimeout(r, 5000));
+            }
+            
+            return { 
+                success: false, 
+                error: 'Timeout waiting for workflow', 
+                logsUrl: await this.getWorkflowRunLogsUrl(repo, runId)
+            };
+        }
+        
+        // Find a workflow run triggered after a specific time
+        async findRecentWorkflowRun(repo, afterTime, maxWaitMs = 30000) {
+            const startTime = Date.now();
+            
+            while (Date.now() - startTime < maxWaitMs) {
+                const runs = await this.getWorkflowRuns(repo, { per_page: 5 });
+                
+                // Find a run that started after our commit
+                const recentRun = runs.find(run => {
+                    const runTime = new Date(run.created_at).getTime();
+                    return runTime >= afterTime - 5000; // 5 second tolerance
+                });
+                
+                if (recentRun) {
+                    return recentRun;
+                }
+                
+                // Wait 3 seconds before checking again
+                await new Promise(r => setTimeout(r, 3000));
+            }
+            
+            return null;
+        }
+        
         // Batch commit multiple files in one commit
         async batchCommit(repo, files, message) {
             const [owner, repoName] = repo.split('/');
@@ -1547,7 +1712,7 @@
         const pendingAutoClose = React.useRef(new Set());
         
         // Auto-close successful deployments after delay
-        // v8.3.6: Fixed - check both step status AND ensure deployment is truly done
+        // v8.5.0: Fixed - check both step status AND ensure deployment is truly done
         React.useEffect(() => {
             activeDeployments.forEach(deployment => {
                 // Check if deployment is truly complete:
@@ -1699,6 +1864,9 @@
             }
             
             const app = apps[appId];
+            // Ensure subPath is set from defaults (localStorage may have empty string from old config)
+            const effectiveSubPath = app.subPath || DEFAULT_APP_DEFINITIONS[appId]?.subPath || '';
+            
             const confirmed = await showConfirm(
                 `Roll back ${app.name} ${target.toUpperCase()} to v${snapshot.version || 'unknown'}?\n\nSaved: ${new Date(snapshot.savedAt).toLocaleString()}`,
                 '⏪ Quick Rollback'
@@ -1742,7 +1910,7 @@
                 addStep('Restoring snapshot', 'complete', result.commit.sha.substring(0, 7));
                 
                 deployment.status = 'success';
-                deployment.url = getGitHubPagesUrl(snapshot.repo, app.subPath);
+                deployment.url = getGitHubPagesUrl(snapshot.repo, effectiveSubPath);
                 
                 const versionKey = target === 'prod' ? 'currentProdVersion' : 'currentTestVersion';
                 updateApp(appId, { [versionKey]: snapshot.version });
@@ -1754,7 +1922,7 @@
                         addStep('GitHub Pages', status, detail);
                         setActiveDeployment({ ...deployment });
                         setDeployments(prev => prev.map(d => d.id === deployment.id ? { ...deployment } : d));
-                    });
+                    }, appId, target);
                 }
                 
             } catch (err) {
@@ -1779,7 +1947,7 @@
         const [repoFiles, setRepoFiles] = React.useState({}); // { repoFullName: { files: [], loading: bool } }
         const [selectedRepoForBrowse, setSelectedRepoForBrowse] = React.useState(null);
         const [markedForDeletion, setMarkedForDeletion] = React.useState([]); // [{ repo, path, sha }]
-        const [deployingRepos, setDeployingRepos] = React.useState({}); // { repoFullName: { version, startTime } }
+        const [deployingRepos, setDeployingRepos] = React.useState({}); // { appId: { version, startTime, repo } }
         
         // Session log state (persisted to localStorage)
         const [sessionLog, setSessionLog] = React.useState(() => {
@@ -1855,7 +2023,7 @@
         React.useEffect(() => { try { localStorage.setItem('cc_session_log', JSON.stringify(sessionLog)); } catch {} }, [sessionLog]);
         
         // Monitor live site until new version appears
-        const monitorLiveDeployment = async (url, expectedVersion, repo, onUpdate) => {
+        const monitorLiveDeployment = async (url, expectedVersion, repo, onUpdate, appId = null, target = 'prod') => {
             const maxWaitMs = 180000; // 3 minutes max
             const pollInterval = 5000; // Check every 5 seconds
             const startTime = Date.now();
@@ -1863,13 +2031,17 @@
             let corsFailures = 0;
             const maxCorsFailures = 3; // Give up after 3 CORS errors
             
+            // Key for deployingRepos - use appId:target if provided, otherwise fall back to repo
+            const deployKey = appId ? `${appId}:${target}` : repo;
+            
             console.log(`=== MONITORING LIVE DEPLOYMENT ===`);
             console.log(`URL: ${url}`);
             console.log(`Repo: ${repo}`);
             console.log(`Expected version: ${expectedVersion}`);
+            console.log(`Deploy key: ${deployKey}`);
             
-            // Mark repo as deploying
-            setDeployingRepos(prev => ({ ...prev, [repo]: { version: expectedVersion, startTime } }));
+            // Mark app as deploying
+            setDeployingRepos(prev => ({ ...prev, [deployKey]: { version: expectedVersion, startTime, repo } }));
             
             while (Date.now() - startTime < maxWaitMs) {
                 attempts++;
@@ -1902,7 +2074,7 @@
                             setTimeout(() => {
                                 setDeployingRepos(prev => {
                                     const next = { ...prev };
-                                    delete next[repo];
+                                    delete next[deployKey];
                                     return next;
                                 });
                             }, remainingMs);
@@ -1924,7 +2096,7 @@
                         onUpdate('complete', `Commit pushed ✓ (verify at site)`);
                         setDeployingRepos(prev => {
                             const next = { ...prev };
-                            delete next[repo];
+                            delete next[deployKey];
                             return next;
                         });
                         return { success: true, corsBlocked: true };
@@ -1941,7 +2113,7 @@
             // Clear deploying state on timeout
             setDeployingRepos(prev => {
                 const next = { ...prev };
-                delete next[repo];
+                delete next[deployKey];
                 return next;
             });
             return { success: false, timeout: true };
@@ -1990,8 +2162,12 @@
             
             const updates = {};
             for (const [appId, app] of Object.entries(currentApps)) {
+                // Ensure subPath is set from defaults (localStorage may have empty string from old config)
+                const effectiveSubPath = app.subPath || DEFAULT_APP_DEFINITIONS[appId]?.subPath || '';
+                const appWithSubPath = { ...app, subPath: effectiveSubPath };
+                
                 // Get the full path including subPath if set
-                const fullTargetPath = getRepoFilePath(app, app.targetPath);
+                const fullTargetPath = getRepoFilePath(appWithSubPath, app.targetPath);
                 
                 if (app.testRepo) {
                     try {
@@ -2263,7 +2439,11 @@
                             }
                             
                             // Check if we got the expected files for a PWA package
-                            if (primaryApp && (primaryApp === 'gameshelf' || htmlFiles.length > 0)) {
+                            // Only check for PWA files if the app actually has a service worker
+                            const appConfig = primaryApp ? DEFAULT_APP_DEFINITIONS[primaryApp] : null;
+                            const isPWA = appConfig?.hasServiceWorker === true;
+                            
+                            if (isPWA && primaryApp && htmlFiles.length > 0) {
                                 const hasIndex = currentFiles.some(f => f.name === 'index.html');
                                 const hasSw = currentFiles.some(f => f.name === 'sw.js');
                                 const hasManifest = currentFiles.some(f => f.name === 'manifest.json');
@@ -2447,11 +2627,15 @@
             if (!github) { await showAlert('Configure GitHub token', 'Configuration Required'); return; }
             
             const app = apps[appId];
+            // Ensure subPath is set from defaults (localStorage may have empty string from old config)
+            const effectiveSubPath = app.subPath || DEFAULT_APP_DEFINITIONS[appId]?.subPath || '';
+            const appWithSubPath = { ...app, subPath: effectiveSubPath };
+            
             const repo = target === 'prod' ? app.prodRepo : app.testRepo;
             if (!repo) { await showAlert(`Configure ${target} repo`, 'Configuration Required'); return; }
             
             // Get full path including subPath
-            const fullTargetPath = getRepoFilePath(app, file.targetPath || app.targetPath);
+            const fullTargetPath = getRepoFilePath(appWithSubPath, file.targetPath || app.targetPath);
             
             const currentVersion = await fetchCurrentVersion(repo, fullTargetPath);
             const newVersion = file.version;
@@ -2504,6 +2688,7 @@
                 }
                 
                 addStep('Committing', 'running');
+                deployment.preCommitTime = Date.now(); // Capture time before commit for workflow search
                 const currentFile = await github.getFile(repo, fullTargetPath);
                 const result = await github.createOrUpdateFile(
                     repo, fullTargetPath, file.content,
@@ -2533,7 +2718,7 @@
                 }
                 
                 deployment.status = 'success';
-                deployment.url = getGitHubPagesUrl(repo, app.subPath);
+                deployment.url = getGitHubPagesUrl(repo, effectiveSubPath);
                 updateApp(appId, { [target === 'prod' ? 'currentProdVersion' : 'currentTestVersion']: newVersion });
                 removeStaged(file.id);
                 
@@ -2563,14 +2748,50 @@
                     }, 500);
                 }
                 
-                // Start monitoring live site for deployment completion
-                if (deployment.url && newVersion) {
+                // Start monitoring for deployment completion
+                if (app?.deployType === 'github-actions') {
+                    // For github-actions apps (Firebase Functions), monitor the workflow
+                    addStep('GitHub Actions', 'running', 'Finding workflow...');
+                    const searchTime = (deployment.preCommitTime || Date.now()) - 10000;
+                    
+                    const workflowRun = await github.findRecentWorkflowRun(repo, searchTime, 60000);
+                    
+                    if (workflowRun) {
+                        const logsUrl = await github.getWorkflowRunLogsUrl(repo, workflowRun.id);
+                        addStep('GitHub Actions', 'running', `Workflow #${workflowRun.run_number} running...`);
+                        deployment.workflowUrl = logsUrl;
+                        setActiveDeployment({ ...deployment });
+                        
+                        const monitorStartTime = Date.now();
+                        const result = await github.waitForWorkflowRun(repo, workflowRun.id, 300000, (run) => {
+                            addStep('GitHub Actions', 'running', `${run.status}... (${Math.round((Date.now() - monitorStartTime) / 1000)}s)`);
+                            setActiveDeployment({ ...deployment });
+                            setDeployments(prev => prev.map(d => d.id === deployment.id ? { ...deployment } : d));
+                        });
+                        
+                        if (result.success) {
+                            addStep('GitHub Actions', 'complete', `✓ Deployed! (${result.run?.conclusion})`);
+                        } else {
+                            addStep('GitHub Actions', 'error', `Failed: ${result.conclusion || result.error}`);
+                            deployment.status = 'failed';
+                            deployment.error = result.conclusion || result.error;
+                            if (result.logsUrl) {
+                                deployment.workflowUrl = result.logsUrl;
+                            }
+                        }
+                    } else {
+                        addStep('GitHub Actions', 'warning', 'Workflow not found - check GitHub manually');
+                        deployment.workflowUrl = `https://github.com/${repo}/actions`;
+                        deployment.status = 'success'; // Code committed successfully, just couldn't track workflow
+                    }
+                } else if (deployment.url && newVersion) {
+                    // For regular apps, monitor the live site
                     addStep('GitHub Pages', 'running', 'Waiting for deploy...');
                     monitorLiveDeployment(deployment.url, newVersion, repo, (status, detail) => {
                         addStep('GitHub Pages', status, detail);
                         setActiveDeployment({ ...deployment });
                         setDeployments(prev => prev.map(d => d.id === deployment.id ? { ...deployment } : d));
-                    });
+                    }, appId, target);
                 }
                 
             } catch (error) {
@@ -2593,7 +2814,14 @@
             if (files.length === 0) return;
             
             const app = apps[appId];
-            const repo = target === 'prod' ? app.prodRepo : app.testRepo;
+            // Ensure subPath is set from defaults (localStorage may have empty string from old config)
+            // Use || instead of ?? to treat empty string as falsy and fall back to default
+            const appWithDefaults = {
+                ...DEFAULT_APP_DEFINITIONS[appId],
+                ...app,
+                subPath: app.subPath || DEFAULT_APP_DEFINITIONS[appId]?.subPath || ''
+            };
+            const repo = target === 'prod' ? appWithDefaults.prodRepo : appWithDefaults.testRepo;
             if (!repo) {
                 await showAlert(`Configure ${target} repo first`, 'Configuration Required');
                 return;
@@ -2645,14 +2873,15 @@
                 validationOk: f.versionValidation?.isValid,
                 contentLength: f.content?.length
             })));
+            console.log('App subPath:', appWithDefaults.subPath);
             
             // 📸 Save rollback snapshot BEFORE deploying
-            const fullTargetPath = getRepoFilePath(app, app.targetPath);
+            const fullTargetPath = getRepoFilePath(appWithDefaults, appWithDefaults.targetPath);
             await saveRollbackSnapshot(appId, target, repo, fullTargetPath);
             
             const deployment = {
                 id: Date.now(), status: 'running', steps: [],
-                appId, appName: app.name, repo, target,
+                appId, appName: appWithDefaults.name, repo, target,
                 version: newVersion,
                 startedAt: new Date().toISOString(),
                 fileCount: files.length
@@ -2661,8 +2890,9 @@
             setActiveDeployment(deployment);
             setDeployments(prev => [deployment, ...prev]);
             
-            // v8.3.3: Set deploying indicator immediately when deploy starts
-            setDeployingRepos(prev => ({ ...prev, [repo]: { version: newVersion, startTime: Date.now() } }));
+            // v8.5.0: Set deploying indicator using appId:target key to avoid shared repo conflicts
+            const deployKey = `${appId}:${target}`;
+            setDeployingRepos(prev => ({ ...prev, [deployKey]: { version: newVersion, startTime: Date.now(), repo } }));
             
             const addStep = (name, status, details = null) => {
                 const existingIndex = deployment.steps.findIndex(s => s.name === name);
@@ -2681,16 +2911,24 @@
                 addStep('Creating commit', 'running');
                 // Prepend subPath to all file paths if needed
                 const filesToCommit = files.map(f => ({
-                    path: getRepoFilePath(app, f.targetPath || f.name),
+                    path: getRepoFilePath(appWithDefaults, f.targetPath || f.name),
                     content: f.content,
                     encoding: f.encoding
                 }));
+                console.log('Files to commit with paths:', filesToCommit.map(f => f.path));
+                
+                // Check if any file has a subdirectory that might not exist
+                // Use batch commit (Git Data API) for these cases since it auto-creates directories
+                const hasSubdirectories = filesToCommit.some(f => f.path.includes('/'));
                 
                 let result;
-                // Use simple Contents API for single files (more reliable than Git Data API)
-                if (filesToCommit.length === 1) {
+                // Use Git Data API (batchCommit) for:
+                // 1. Multiple files
+                // 2. Files with subdirectories (to auto-create directories)
+                // Use Contents API only for single files at repo root (more reliable for simple cases)
+                if (filesToCommit.length === 1 && !hasSubdirectories) {
                     const file = filesToCommit[0];
-                    console.log('Single file deploy, using Contents API for:', file.path);
+                    console.log('Single file at root, using Contents API for:', file.path);
                     
                     // Get current file SHA if it exists (needed for update)
                     let existingSha = null;
@@ -2716,31 +2954,43 @@
                         }
                     }
                     
+                    // Capture time BEFORE commit for GitHub Actions workflow detection
+                    deployment.preCommitTime = Date.now();
+                    
                     result = await github.createOrUpdateFile(
                         repo,
                         file.path,
                         contentToSend,
-                        `Deploy ${app.name} ${formatVersion(newVersion)} (${files.length} files)`,
+                        `Deploy ${appWithDefaults.name} ${formatVersion(newVersion)} (${files.length} files)`,
                         existingSha
                     );
                     result.sha = result.commit.sha;
                 } else {
-                    // Multiple files - use batch commit (Git Data API)
+                    // Multiple files OR files with subdirectories - use batch commit (Git Data API)
+                    // Git Data API auto-creates directories, which is essential for new subdirectories
+                    console.log(`Using Git Data API (batchCommit) - files: ${filesToCommit.length}, hasSubdirs: ${hasSubdirectories}`);
+                    
+                    // Capture time BEFORE commit for GitHub Actions workflow detection
+                    deployment.preCommitTime = Date.now();
+                    
                     result = await github.batchCommit(
                         repo,
                         filesToCommit,
-                        `Deploy ${app.name} ${formatVersion(newVersion)} (${files.length} files)`
+                        `Deploy ${appWithDefaults.name} ${formatVersion(newVersion)} (${files.length} files)`
                     );
                 }
                 deployment.commitSha = result.sha;
                 addStep('Creating commit', 'complete', result.sha.substring(0, 7));
                 
-                addStep('GitHub Pages', 'running');
-                try {
-                    await github.enablePages(repo);
-                    addStep('GitHub Pages', 'complete', 'Ready');
-                } catch (e) {
-                    addStep('GitHub Pages', 'warning', e.message);
+                // Skip GitHub Pages for GitHub Actions deploys (Firebase Functions doesn't use Pages)
+                if (appWithDefaults.deployType !== 'github-actions') {
+                    addStep('GitHub Pages', 'running');
+                    try {
+                        await github.enablePages(repo);
+                        addStep('GitHub Pages', 'complete', 'Ready');
+                    } catch (e) {
+                        addStep('GitHub Pages', 'warning', e.message);
+                    }
                 }
                 
                 if (settings.createTag && newVersion !== 'batch') {
@@ -2754,8 +3004,11 @@
                     }
                 }
                 
-                deployment.status = 'success';
-                deployment.url = getGitHubPagesUrl(repo, app.subPath);
+                // For GitHub Actions deploys, don't set success yet - wait for workflow
+                if (appWithDefaults.deployType !== 'github-actions') {
+                    deployment.status = 'success';
+                }
+                deployment.url = getGitHubPagesUrl(repo, appWithDefaults.subPath);
                 
                 // Verify the deployment by fetching back from repo
                 console.log('=== VERIFYING DEPLOYMENT ===');
@@ -2791,14 +3044,54 @@
                 // Refresh will happen on next manual refresh or page load
                 // setTimeout(() => refreshAllVersions(), 500); // DISABLED - causes version revert due to GitHub caching
                 
-                // Start monitoring live site for deployment completion
-                if (deployment.url && newVersion !== 'batch') {
+                // v8.5.0: For GitHub Actions deploys (Firebase Functions), monitor workflow instead of live site
+                if (app.deployType === 'github-actions') {
+                    addStep('GitHub Actions', 'running', 'Finding workflow...');
+                    // Use preCommitTime captured before the commit, with extra buffer
+                    const searchTime = (deployment.preCommitTime || Date.now()) - 10000; // 10 second buffer before commit
+                    
+                    // Find the workflow run triggered by our commit (wait up to 60 seconds for it to appear)
+                    const workflowRun = await github.findRecentWorkflowRun(repo, searchTime, 60000);
+                    
+                    if (workflowRun) {
+                        const logsUrl = await github.getWorkflowRunLogsUrl(repo, workflowRun.id);
+                        addStep('GitHub Actions', 'running', `Workflow #${workflowRun.run_number} running...`);
+                        deployment.workflowUrl = logsUrl;
+                        setActiveDeployment({ ...deployment });
+                        
+                        // Monitor the workflow
+                        const monitorStartTime = Date.now();
+                        const result = await github.waitForWorkflowRun(repo, workflowRun.id, 300000, (run) => {
+                            addStep('GitHub Actions', 'running', `${run.status}... (${Math.round((Date.now() - monitorStartTime) / 1000)}s)`);
+                            setActiveDeployment({ ...deployment });
+                            setDeployments(prev => prev.map(d => d.id === deployment.id ? { ...deployment } : d));
+                        });
+                        
+                        if (result.success) {
+                            addStep('GitHub Actions', 'complete', `✓ Deployed! (${result.run?.conclusion})`);
+                            deployment.status = 'success';
+                        } else {
+                            addStep('GitHub Actions', 'error', `Failed: ${result.conclusion || result.error}`);
+                            deployment.status = 'failed';
+                            deployment.error = result.conclusion || result.error;
+                            // Show link to logs
+                            if (result.logsUrl) {
+                                deployment.workflowUrl = result.logsUrl;
+                            }
+                        }
+                    } else {
+                        addStep('GitHub Actions', 'warning', 'Workflow not found - check GitHub manually');
+                        deployment.workflowUrl = `https://github.com/${repo}/actions`;
+                    }
+                }
+                // Start monitoring live site for deployment completion (non-Actions deploys)
+                else if (deployment.url && newVersion !== 'batch') {
                     addStep('GitHub Pages', 'running', 'Waiting for deploy...');
                     monitorLiveDeployment(deployment.url, newVersion, repo, (status, detail) => {
                         addStep('GitHub Pages', status, detail);
                         setActiveDeployment({ ...deployment });
                         setDeployments(prev => prev.map(d => d.id === deployment.id ? { ...deployment } : d));
-                    });
+                    }, appId, target);
                 }
                 
                 // Remove deployed files from staged
@@ -2811,9 +3104,10 @@
                 console.error('Batch deployment failed:', error);
                 
                 // v8.3.3: Clear deploying indicator on failure
+                const deployKey = `${appId}:${target}`;
                 setDeployingRepos(prev => {
                     const next = { ...prev };
-                    delete next[repo];
+                    delete next[deployKey];
                     return next;
                 });
                 
@@ -2885,6 +3179,11 @@
                 await showAlert(`App "${appId}" not found`, 'Promote Error');
                 return;
             }
+            
+            // Ensure subPath is set from defaults (localStorage may have empty string from old config)
+            const effectiveSubPath = app.subPath || DEFAULT_APP_DEFINITIONS[appId]?.subPath || '';
+            const appWithSubPath = { ...app, subPath: effectiveSubPath };
+            
             if (!app.testRepo) {
                 await showAlert(`No TEST repo configured for ${app.name}. Assign a test repo first.`, 'Promote Error');
                 return;
@@ -2897,6 +3196,7 @@
             console.log(`[Promote] Starting promotion for ${appId}`);
             console.log(`[Promote] TEST repo: ${app.testRepo}`);
             console.log(`[Promote] PROD repo: ${app.prodRepo}`);
+            console.log(`[Promote] subPath: ${effectiveSubPath || '(root)'}`);
             
             setModal(null);
             
@@ -2934,17 +3234,17 @@
                 }
                 
                 // Convert to full paths with subPath
-                const filesToPromote = baseFilesToPromote.map(f => getRepoFilePath(app, f));
+                const filesToPromote = baseFilesToPromote.map(f => getRepoFilePath(appWithSubPath, f));
                 
                 // For PWA apps, also check for icons folder
                 let iconFiles = [];
                 if (app.hasServiceWorker) {
                     try {
-                        const iconsPath = getRepoFilePath(app, 'icons');
+                        const iconsPath = getRepoFilePath(appWithSubPath, 'icons');
                         const iconsContents = await github.listRepoContents(app.testRepo, iconsPath);
                         iconFiles = iconsContents
                             .filter(f => f.type === 'file' && /\.(png|ico|svg|webp)$/i.test(f.name))
-                            .map(f => getRepoFilePath(app, `icons/${f.name}`));
+                            .map(f => getRepoFilePath(appWithSubPath, `icons/${f.name}`));
                         console.log(`Found ${iconFiles.length} icon files in TEST at ${iconsPath}`);
                     } catch (e) {
                         console.log('No icons folder found in TEST');
@@ -2957,7 +3257,7 @@
                 let testVersion = null;
                 
                 // Fetch main PWA files
-                const fullTargetPath = getRepoFilePath(app, app.targetPath);
+                const fullTargetPath = getRepoFilePath(appWithSubPath, app.targetPath);
                 for (const filePath of filesToPromote) {
                     try {
                         const testFile = await github.getFile(app.testRepo, filePath);
@@ -3057,6 +3357,9 @@
                 
                 addStep('Deploying', 'running', `${filesToCommit.length} files`);
                 
+                // Capture time before commit for workflow search
+                deployment.preCommitTime = Date.now();
+                
                 // Use batch commit for multiple files
                 const result = await github.batchCommit(
                     app.prodRepo,
@@ -3088,20 +3391,53 @@
                 
                 deployment.status = 'success';
                 deployment.version = testVersion;
-                deployment.url = getGitHubPagesUrl(app.prodRepo, app.subPath);
+                deployment.url = getGitHubPagesUrl(app.prodRepo, effectiveSubPath);
                 updateApp(appId, { currentProdVersion: testVersion });
                 
                 // Don't refresh immediately - GitHub's CDN needs time to propagate
                 // setTimeout(() => refreshAllVersions(), 1000); // DISABLED - causes version revert
                 
-                // Start monitoring live site for deployment completion
-                if (deployment.url && testVersion) {
+                // Start monitoring for deployment completion
+                if (app?.deployType === 'github-actions') {
+                    // For github-actions apps, monitor the workflow
+                    addStep('GitHub Actions', 'running', 'Finding workflow...');
+                    const searchTime = (deployment.preCommitTime || Date.now()) - 10000;
+                    
+                    const workflowRun = await github.findRecentWorkflowRun(app.prodRepo, searchTime, 60000);
+                    
+                    if (workflowRun) {
+                        const logsUrl = await github.getWorkflowRunLogsUrl(app.prodRepo, workflowRun.id);
+                        addStep('GitHub Actions', 'running', `Workflow #${workflowRun.run_number} running...`);
+                        deployment.workflowUrl = logsUrl;
+                        setActiveDeployment({ ...deployment });
+                        
+                        const monitorStartTime = Date.now();
+                        const result = await github.waitForWorkflowRun(app.prodRepo, workflowRun.id, 300000, (run) => {
+                            addStep('GitHub Actions', 'running', `${run.status}... (${Math.round((Date.now() - monitorStartTime) / 1000)}s)`);
+                            setActiveDeployment({ ...deployment });
+                            setDeployments(prev => prev.map(d => d.id === deployment.id ? { ...deployment } : d));
+                        });
+                        
+                        if (result.success) {
+                            addStep('GitHub Actions', 'complete', `✓ Deployed! (${result.run?.conclusion})`);
+                        } else {
+                            addStep('GitHub Actions', 'error', `Failed: ${result.conclusion || result.error}`);
+                            deployment.status = 'failed';
+                            deployment.error = result.conclusion || result.error;
+                        }
+                    } else {
+                        addStep('GitHub Actions', 'warning', 'Workflow not found - check GitHub manually');
+                        deployment.workflowUrl = `https://github.com/${app.prodRepo}/actions`;
+                        deployment.status = 'success'; // Code committed successfully, just couldn't track workflow
+                    }
+                } else if (deployment.url && testVersion) {
+                    // For regular apps, monitor the live site
                     addStep('GitHub Pages', 'running', 'Waiting for deploy...');
                     monitorLiveDeployment(deployment.url, testVersion, app.prodRepo, (status, detail) => {
                         addStep('GitHub Pages', status, detail);
                         setActiveDeployment({ ...deployment });
                         setDeployments(prev => prev.map(d => d.id === deployment.id ? { ...deployment } : d));
-                    });
+                    }, appId, 'prod');
                 }
                 
             } catch (error) {
@@ -3119,6 +3455,10 @@
         const handleRollback = async (deploymentToRollbackTo) => {
             const app = apps[deploymentToRollbackTo.appId];
             if (!app) return;
+            
+            // Ensure subPath is set from defaults (localStorage may have empty string from old config)
+            const effectiveSubPath = app.subPath || DEFAULT_APP_DEFINITIONS[deploymentToRollbackTo.appId]?.subPath || '';
+            const appWithSubPath = { ...app, subPath: effectiveSubPath };
             
             setModal(null);
             
@@ -3150,7 +3490,7 @@
             
             try {
                 // Get full path including subPath
-                const fullTargetPath = getRepoFilePath(app, app.targetPath);
+                const fullTargetPath = getRepoFilePath(appWithSubPath, app.targetPath);
                 
                 addStep('Getting current state', 'running');
                 const currentFileData = await github.getFileContent(repo, fullTargetPath);
@@ -3168,6 +3508,7 @@
                 addStep('Fetching rollback version', 'complete', formatVersion(targetVersion));
                 
                 addStep('Rolling back', 'running');
+                deployment.preCommitTime = Date.now(); // Capture time before commit for workflow search
                 const result = await github.createOrUpdateFile(
                     repo, fullTargetPath, content,
                     `Rollback ${app.name} to ${formatVersion(targetVersion)} (was ${formatVersion(currentVersion)})`,
@@ -3177,18 +3518,51 @@
                 addStep('Rolling back', 'complete', result.commit.sha.substring(0, 7));
                 
                 deployment.status = 'success';
-                deployment.url = getGitHubPagesUrl(repo, app.subPath);
+                deployment.url = getGitHubPagesUrl(repo, effectiveSubPath);
                 const versionKey = deploymentToRollbackTo.target === 'prod' ? 'currentProdVersion' : 'currentTestVersion';
                 updateApp(deploymentToRollbackTo.appId, { [versionKey]: targetVersion });
                 
-                // Start monitoring live site for deployment completion
-                if (deployment.url && targetVersion) {
+                // Start monitoring for deployment completion
+                if (app?.deployType === 'github-actions') {
+                    // For github-actions apps, monitor the workflow
+                    addStep('GitHub Actions', 'running', 'Finding workflow...');
+                    const searchTime = (deployment.preCommitTime || Date.now()) - 10000;
+                    
+                    const workflowRun = await github.findRecentWorkflowRun(repo, searchTime, 60000);
+                    
+                    if (workflowRun) {
+                        const logsUrl = await github.getWorkflowRunLogsUrl(repo, workflowRun.id);
+                        addStep('GitHub Actions', 'running', `Workflow #${workflowRun.run_number} running...`);
+                        deployment.workflowUrl = logsUrl;
+                        setActiveDeployment({ ...deployment });
+                        
+                        const monitorStartTime = Date.now();
+                        const result = await github.waitForWorkflowRun(repo, workflowRun.id, 300000, (run) => {
+                            addStep('GitHub Actions', 'running', `${run.status}... (${Math.round((Date.now() - monitorStartTime) / 1000)}s)`);
+                            setActiveDeployment({ ...deployment });
+                            setDeployments(prev => prev.map(d => d.id === deployment.id ? { ...deployment } : d));
+                        });
+                        
+                        if (result.success) {
+                            addStep('GitHub Actions', 'complete', `✓ Deployed! (${result.run?.conclusion})`);
+                        } else {
+                            addStep('GitHub Actions', 'error', `Failed: ${result.conclusion || result.error}`);
+                            deployment.status = 'failed';
+                            deployment.error = result.conclusion || result.error;
+                        }
+                    } else {
+                        addStep('GitHub Actions', 'warning', 'Workflow not found - check GitHub manually');
+                        deployment.workflowUrl = `https://github.com/${repo}/actions`;
+                        deployment.status = 'success'; // Code committed successfully, just couldn't track workflow
+                    }
+                } else if (deployment.url && targetVersion) {
+                    // For regular apps, monitor the live site
                     addStep('GitHub Pages', 'running', 'Waiting for deploy...');
                     monitorLiveDeployment(deployment.url, targetVersion, repo, (status, detail) => {
                         addStep('GitHub Pages', status, detail);
                         setActiveDeployment({ ...deployment });
                         setDeployments(prev => prev.map(d => d.id === deployment.id ? { ...deployment } : d));
-                    });
+                    }, deploymentToRollbackTo.appId, deploymentToRollbackTo.target);
                 }
                 
             } catch (error) {
@@ -3212,7 +3586,7 @@
                                 <Icons.GameShelfLogo size={32} />
                                 <div>
                                     <h1 className="text-lg font-bold">Command Center</h1>
-                                    <div className="text-xs text-slate-400">v8.3.3 • Local file warning banner</div>
+                                    <div className="text-xs text-slate-400">v8.6.0 • Deploy & manage apps</div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-1">
@@ -3224,7 +3598,7 @@
                                 {/* Consolidated Navigation - 4 main sections */}
                                 {[
                                     { id: 'deploy', icon: '🚀', label: 'Deploy', views: ['dashboard', 'smartdeploy', 'history'] },
-                                    { id: 'monitor', icon: '📊', label: 'Monitor', views: ['firebase', 'integrations', 'issues'] },
+                                    { id: 'monitor', icon: '📊', label: 'Monitor', views: ['users', 'firebase', 'integrations', 'issues'] },
                                     { id: 'maintain', icon: '🔧', label: 'Maintain', views: ['cleanup', 'files', 'archive', 'session'] },
                                     { id: 'configure', icon: '⚙️', label: 'Configure', views: ['config', 'apps', 'settings'] }
                                 ].map(section => (
@@ -3250,6 +3624,7 @@
                                                     {v === 'dashboard' && '📋 Dashboard'}
                                                     {v === 'smartdeploy' && '📦 Smart Deploy'}
                                                     {v === 'history' && '📜 Deploy History'}
+                                                    {v === 'users' && '👥 Users'}
                                                     {v === 'firebase' && '🔥 Firebase'}
                                                     {v === 'integrations' && '⚡ Integrations'}
                                                     {v === 'issues' && '🐛 Issues'}
@@ -3437,6 +3812,10 @@
                         <FirebaseView showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} />
                     )}
                     
+                    {view === 'users' && (
+                        <UsersView showAlert={showAlert} />
+                    )}
+                    
                     {view === 'integrations' && (
                         <IntegrationsView showAlert={showAlert} showConfirm={showConfirm} showPrompt={showPrompt} />
                     )}
@@ -3452,7 +3831,7 @@
                         />
                     )}
                     
-                    {view === 'apps' && <AppsView apps={apps} repos={availableRepos} onUpdate={updateApp} />}
+                    {view === 'apps' && <AppsView apps={apps} repos={availableRepos} onUpdate={updateApp} github={github} />}
                     
                     {view === 'history' && (
                         <HistoryView 
@@ -4173,6 +4552,9 @@
         const [isDeploying, setIsDeploying] = React.useState(false);
         const [deployCompleted, setDeployCompleted] = React.useState(false);
         const [lastCompletedDeployId, setLastCompletedDeployId] = React.useState(null);
+        // Track if deploy button was clicked in this session (prevents history-based false positive)
+        const deployClickedThisSession = React.useRef(false);
+        
         const [otherCollapsed, setOtherCollapsed] = React.useState(true); // v8.3.3: Collapse "Other" by default
         
         // Compatibility: get first deployment for legacy code
@@ -4234,8 +4616,10 @@
                 } else if (activeDeployment.status === 'success' || activeDeployment.status === 'failed' || activeDeployment.status === 'error') {
                     // Only stop spinner when deployment finishes (success or failure)
                     setIsDeploying(false);
-                    // v8.3.3: Only set deployCompleted if this is a NEW completed deployment
-                    if (activeDeployment.status === 'success' && activeDeployment.id !== lastCompletedDeployId) {
+                    // Only set deployCompleted if deploy was clicked this session
+                    if (activeDeployment.status === 'success' && 
+                        activeDeployment.id !== lastCompletedDeployId &&
+                        deployClickedThisSession.current) {
                         setDeployCompleted(true);
                         setLastCompletedDeployId(activeDeployment.id);
                     }
@@ -4243,12 +4627,12 @@
             }
         }, [activeDeployment, activeDeployment?.status, activeDeployment?.id, lastCompletedDeployId]);
         
-        // Reset deployCompleted when staging new files
+        // Reset deployCompleted when staging new files or files change
+        const stagedFileIds = stagedFiles.map(f => f.id).join(',');
         React.useEffect(() => {
-            if (stagedFiles.length > 0) {
-                setDeployCompleted(false);
-            }
-        }, [stagedFiles.length]);
+            // Reset whenever staged files change (new files, different files, or cleared)
+            setDeployCompleted(false);
+        }, [stagedFileIds]);
         
         // Expanded app menus state
         const [expandedApps, setExpandedApps] = React.useState({});
@@ -4499,7 +4883,15 @@
                                     )}
                                     
                                     <div className="grid grid-cols-2 gap-3 mb-3">
-                                        <select value={deployTarget.appId} onChange={e => setDeployTarget(p => ({ ...p, appId: e.target.value }))}
+                                        <select value={deployTarget.appId} onChange={e => {
+                                            const newAppId = e.target.value;
+                                            const selectedApp = apps[newAppId];
+                                            // Auto-switch to prod for apps that only have prod repo
+                                            const defaultTarget = (newAppId === 'firebase-functions' || (selectedApp?.prodRepo && !selectedApp?.testRepo)) 
+                                                ? 'prod' 
+                                                : deployTarget.target;
+                                            setDeployTarget({ appId: newAppId, target: defaultTarget });
+                                        }}
                                             className={`p-2 border rounded text-sm ${
                                                 hasMismatch 
                                                     ? 'bg-amber-900 border-amber-500' 
@@ -4533,17 +4925,25 @@
                                             );
                                             if (confirmed) {
                                                 setIsDeploying(true);
+                                                deployClickedThisSession.current = true;
                                                 console.log('Deploying files:', selectedFiles.map(f => ({ name: f.name, id: f.id, size: f.content?.length })));
                                                 onBatchDeploy(selectedFiles, deployTarget.appId, deployTarget.target);
-                                                // Always reset to TEST after initiating deploy (safety default)
-                                                setDeployTarget(prev => ({ ...prev, target: 'test' }));
+                                                // Reset to TEST after deploy, unless this is a prod-only app
+                                                const currentApp = apps[deployTarget.appId];
+                                                if (currentApp?.testRepo) {
+                                                    setDeployTarget(prev => ({ ...prev, target: 'test' }));
+                                                }
                                             }
                                         } else {
                                             setIsDeploying(true);
+                                            deployClickedThisSession.current = true;
                                             console.log('Deploying files:', selectedFiles.map(f => ({ name: f.name, id: f.id, size: f.content?.length })));
                                             onBatchDeploy(selectedFiles, deployTarget.appId, deployTarget.target);
-                                            // Always reset to TEST after initiating deploy (safety default)
-                                            setDeployTarget(prev => ({ ...prev, target: 'test' }));
+                                            // Reset to TEST after deploy, unless this is a prod-only app
+                                            const currentApp = apps[deployTarget.appId];
+                                            if (currentApp?.testRepo) {
+                                                setDeployTarget(prev => ({ ...prev, target: 'test' }));
+                                            }
                                         }
                                     }}
                                         disabled={!github || isDeploying}
@@ -4806,6 +5206,11 @@
                                             <Icons.ExternalLink /> Open Site
                                         </a>
                                     )}
+                                    {deployment.workflowUrl && (
+                                        <a href={deployment.workflowUrl} target="_blank" className="mt-2 ml-3 inline-flex items-center gap-1 text-amber-400 hover:underline text-sm">
+                                            <Icons.ExternalLink /> View Workflow
+                                        </a>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -4829,10 +5234,11 @@
                                     <div className="space-y-2">
                                         {publicApps.map(app => {
                                             const canPromote = app.testRepo && app.prodRepo && app.currentTestVersion && app.currentTestVersion !== app.currentProdVersion;
-                                            const testUrl = getGitHubPagesUrl(app.testRepo, app.subPath);
-                                            const prodUrl = getGitHubPagesUrl(app.prodRepo, app.subPath);
-                                            const testDeploying = deployingRepos && deployingRepos[app.testRepo];
-                                            const prodDeploying = deployingRepos && deployingRepos[app.prodRepo];
+                                            const effectiveSubPath = getEffectiveSubPath(app, app.id);
+                                            const testUrl = getGitHubPagesUrl(app.testRepo, effectiveSubPath);
+                                            const prodUrl = getGitHubPagesUrl(app.prodRepo, effectiveSubPath);
+                                            const testDeploying = deployingRepos && deployingRepos[`${app.id}:test`];
+                                            const prodDeploying = deployingRepos && deployingRepos[`${app.id}:prod`];
                                             const isExpanded = expandedApps[app.id];
                                             const info = appInfo[app.id];
                                             const isLoadingInfo = loadingAppInfo[app.id];
@@ -4989,8 +5395,9 @@
                                     </div>
                                     <div className="space-y-2">
                                         {internalApps.map(app => {
-                                            const prodUrl = getGitHubPagesUrl(app.prodRepo, app.subPath);
-                                            const prodDeploying = deployingRepos && deployingRepos[app.prodRepo];
+                                            const effectiveSubPath = getEffectiveSubPath(app, app.id);
+                                            const prodUrl = getGitHubPagesUrl(app.prodRepo, effectiveSubPath);
+                                            const prodDeploying = deployingRepos && deployingRepos[`${app.id}:prod`];
                                             const isExpanded = expandedApps[app.id];
                                             const info = appInfo[app.id];
                                             
@@ -5057,9 +5464,10 @@
                                     {!otherCollapsed && (
                                         <div className="space-y-2">
                                             {otherApps.map(app => {
-                                                const testUrl = getGitHubPagesUrl(app.testRepo, app.subPath);
-                                                const prodUrl = getGitHubPagesUrl(app.prodRepo, app.subPath);
-                                                const prodDeploying = deployingRepos && deployingRepos[app.prodRepo];
+                                                const effectiveSubPath = getEffectiveSubPath(app, app.id);
+                                                const testUrl = getGitHubPagesUrl(app.testRepo, effectiveSubPath);
+                                                const prodUrl = getGitHubPagesUrl(app.prodRepo, effectiveSubPath);
+                                                const prodDeploying = deployingRepos && deployingRepos[`${app.id}:prod`];
                                                 
                                                 return (
                                                     <div key={app.id} className="bg-slate-700/30 rounded-lg p-2 flex items-center gap-2">
@@ -5514,6 +5922,135 @@
                                 </div>
                             ))}
                         </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // =========================================================================
+    // USERS VIEW - User statistics dashboard
+    // =========================================================================
+    
+    function UsersView({ showAlert }) {
+        const [userStats, setUserStats] = React.useState(null);
+        const [loading, setLoading] = React.useState(false);
+        const [error, setError] = React.useState(null);
+        
+        const loadUserStats = async () => {
+            if (!firebaseAuth?.currentUser) {
+                setError('Sign in required');
+                return;
+            }
+            setLoading(true);
+            setError(null);
+            try {
+                const getUserStats = firebase.functions().httpsCallable('getUserStats');
+                const result = await getUserStats();
+                setUserStats({
+                    ...result.data,
+                    lastUpdated: new Date().toISOString()
+                });
+            } catch (e) {
+                console.error('Failed to load user stats:', e);
+                setError(e.message || 'Failed to load stats');
+            }
+            setLoading(false);
+        };
+        
+        // Auto-load on mount
+        React.useEffect(() => {
+            loadUserStats();
+        }, []);
+        
+        return (
+            <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                        👥 User Statistics
+                    </h2>
+                    <button
+                        onClick={loadUserStats}
+                        disabled={loading}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                    >
+                        {loading ? '⏳ Loading...' : '🔄 Refresh'}
+                    </button>
+                </div>
+                
+                {error && (
+                    <div className="bg-red-900/30 border border-red-700 rounded-lg p-4 text-red-400">
+                        ⚠️ {error}
+                    </div>
+                )}
+                
+                {!userStats && !error && !loading && (
+                    <div className="bg-slate-800 rounded-xl p-8 text-center text-slate-500">
+                        Click Refresh to load user statistics
+                    </div>
+                )}
+                
+                {loading && !userStats && (
+                    <div className="bg-slate-800 rounded-xl p-8 text-center text-slate-400">
+                        <div className="animate-pulse">Loading user statistics...</div>
+                    </div>
+                )}
+                
+                {userStats && (
+                    <div className="space-y-6">
+                        {/* Main Stats */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 rounded-xl p-6 border border-indigo-700">
+                                <div className="text-4xl font-bold text-indigo-400">{userStats.total?.toLocaleString() || 0}</div>
+                                <div className="text-sm text-slate-400 mt-1">Total Registered Users</div>
+                            </div>
+                            <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+                                <div className="text-4xl font-bold text-green-400">{userStats.activeMonth || 0}</div>
+                                <div className="text-sm text-slate-400 mt-1">Active (30 days)</div>
+                            </div>
+                            <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+                                <div className="text-4xl font-bold text-blue-400">{userStats.activeWeek || 0}</div>
+                                <div className="text-sm text-slate-400 mt-1">Active (7 days)</div>
+                            </div>
+                            <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+                                <div className="text-4xl font-bold text-amber-400">{userStats.activeToday || 0}</div>
+                                <div className="text-sm text-slate-400 mt-1">Active Today</div>
+                            </div>
+                        </div>
+                        
+                        {/* Growth Stats */}
+                        <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+                            <h3 className="font-semibold mb-4">📈 Growth</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="text-center p-4 bg-slate-900 rounded-lg">
+                                    <div className="text-2xl font-bold text-emerald-400">+{userStats.newToday || 0}</div>
+                                    <div className="text-xs text-slate-500">New Today</div>
+                                </div>
+                                <div className="text-center p-4 bg-slate-900 rounded-lg">
+                                    <div className="text-2xl font-bold text-teal-400">+{userStats.newWeek || 0}</div>
+                                    <div className="text-xs text-slate-500">New This Week</div>
+                                </div>
+                                <div className="text-center p-4 bg-slate-900 rounded-lg">
+                                    <div className="text-2xl font-bold text-cyan-400">
+                                        {userStats.total > 0 ? Math.round((userStats.activeMonth / userStats.total) * 100) : 0}%
+                                    </div>
+                                    <div className="text-xs text-slate-500">30-Day Retention</div>
+                                </div>
+                                <div className="text-center p-4 bg-slate-900 rounded-lg">
+                                    <div className="text-2xl font-bold text-violet-400">
+                                        {userStats.total > 0 ? Math.round((userStats.activeWeek / userStats.total) * 100) : 0}%
+                                    </div>
+                                    <div className="text-xs text-slate-500">7-Day Retention</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Last Updated */}
+                        {userStats.lastUpdated && (
+                            <div className="text-xs text-slate-500 text-right">
+                                Last updated: {new Date(userStats.lastUpdated).toLocaleString()}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -5988,7 +6525,7 @@
                             ))}
                         </div>
                         
-                        {/* Usage Stats */}
+                        {/* Hint Usage Stats */}
                         <UsageStatsPanel />
                     </div>
                 )}
@@ -6200,6 +6737,7 @@
                 folders: ['icons']
             },
             gameshelf: {
+                // v8.5.0: PWA now in /app/, landing at root
                 required: ['index.html', 'sw.js', 'manifest.json', 'manifest-test.json'],
                 optional: ['RELEASE_NOTES.txt', 'CNAME'],
                 folders: ['icons', 'icons-test', 'quotle', 'slate', 'rungs', 'wordboxing', 'beta']
@@ -6213,8 +6751,9 @@
         
         // Define which repos are consolidated (should contain subfolders)
         const CONSOLIDATED_REPOS = {
-            'gameshelf': ['quotle', 'slate', 'rungs', 'wordboxing', 'beta'],
-            'gameshelftest': ['quotle', 'slate', 'rungs', 'wordboxing']
+            // v8.5.0: Added 'app' for PWA location
+            'gameshelf': ['app', 'quotle', 'slate', 'rungs', 'wordboxing', 'beta'],
+            'gameshelftest': ['app', 'quotle', 'slate', 'rungs', 'wordboxing']
         };
         
         // Define legacy repos that may no longer be needed
@@ -6225,6 +6764,8 @@
             /^rungs$/i, /^rungstest$/i,
             /^wordboxing$/i, /^wordboxingtest$/i,
             /^word-boxing$/i,
+            // Landing page repos (now at gameshelf root) - v8.5.0
+            /^game-shelf-landing$/i, /^game-shelf-landing-test$/i,
             // Old naming patterns
             /^gameshelf-dev$/i, /^gameshelf-beta$/i,
             // Typos or experiments
@@ -7507,7 +8048,43 @@
     // APPS VIEW
     // =========================================================================
     
-    function AppsView({ apps, repos, onUpdate }) {
+    function AppsView({ apps, repos, onUpdate, github }) {
+        const [repoDirectories, setRepoDirectories] = React.useState({});
+        const [loadingDirs, setLoadingDirs] = React.useState({});
+        
+        // Fetch directories for a repo
+        const fetchDirectories = async (repoFullName) => {
+            if (!github || !repoFullName || repoDirectories[repoFullName]) return;
+            
+            setLoadingDirs(prev => ({ ...prev, [repoFullName]: true }));
+            try {
+                const contents = await github.listRepoContents(repoFullName, '');
+                const dirs = contents
+                    .filter(item => item.type === 'dir')
+                    .map(item => item.name)
+                    .sort();
+                setRepoDirectories(prev => ({ ...prev, [repoFullName]: dirs }));
+            } catch (e) {
+                console.error('Failed to fetch directories for', repoFullName, e);
+                setRepoDirectories(prev => ({ ...prev, [repoFullName]: [] }));
+            }
+            setLoadingDirs(prev => ({ ...prev, [repoFullName]: false }));
+        };
+        
+        // Fetch directories when prod repo changes
+        React.useEffect(() => {
+            Object.values(apps).forEach(app => {
+                if (app.prodRepo && !repoDirectories[app.prodRepo]) {
+                    fetchDirectories(app.prodRepo);
+                }
+            });
+        }, [apps, github]);
+        
+        // Get directories for a given app's prod repo
+        const getDirsForApp = (app) => {
+            return repoDirectories[app.prodRepo] || [];
+        };
+        
         return (
             <div className="space-y-6">
                 <h2 className="text-xl font-bold">App Configuration</h2>
@@ -7529,10 +8106,24 @@
                                 </div>
                                 <div>
                                     <label className="text-xs text-green-400">🚀 PROD</label>
-                                    <select value={app.prodRepo || ''} onChange={e => onUpdate(app.id, { prodRepo: e.target.value })}
+                                    <select value={app.prodRepo || ''} onChange={e => {
+                                        onUpdate(app.id, { prodRepo: e.target.value });
+                                        if (e.target.value) fetchDirectories(e.target.value);
+                                    }}
                                         className="w-full p-1.5 bg-slate-700 border border-slate-600 rounded text-sm">
                                         <option value="">Select...</option>
                                         {repos.map(r => <option key={r.fullName} value={r.fullName}>{r.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs text-slate-400">Sub Path</label>
+                                    <select value={app.subPath || ''} onChange={e => onUpdate(app.id, { subPath: e.target.value })}
+                                        className="w-full p-1.5 bg-slate-700 border border-slate-600 rounded text-sm font-mono">
+                                        <option value="">(root)</option>
+                                        {loadingDirs[app.prodRepo] && <option disabled>Loading...</option>}
+                                        {getDirsForApp(app).map(dir => (
+                                            <option key={dir} value={dir}>{dir}/</option>
+                                        ))}
                                     </select>
                                 </div>
                                 <div>
