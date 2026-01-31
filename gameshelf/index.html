@@ -13,7 +13,7 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-    <meta name="version" content="1.3.52">
+    <meta name="version" content="1.4.4">
     <meta name="gs-app-id" content="gameshelf">
     <meta name="theme-color" content="#667eea">
     <meta name="description" content="Track your daily puzzle games, build streaks, compete with friends!">
@@ -207,6 +207,22 @@
             display: flex;
             align-items: center;
             gap: 8px;
+        }
+        
+        .beta-badge-link {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 4px;
+            text-decoration: none;
+            letter-spacing: 0.05em;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .beta-badge-link:active {
+            transform: scale(0.95);
         }
         
         .header-right {
@@ -403,6 +419,36 @@
         
         .settings-menu.active {
             left: 0;
+        }
+        
+        /* Desktop with enough space: Show menu beside the app container */
+        @media (min-width: 900px) {
+            .settings-overlay {
+                /* Dim only the app area, not the whole screen */
+                left: 50%;
+                transform: translateX(-50%);
+                width: 100%;
+                max-width: 480px;
+                background: rgba(0,0,0,0.3);
+            }
+            
+            .settings-menu {
+                /* Position to the left of the centered 480px container */
+                /* 50% - 240px (half container) - 10px gap = left edge of menu's right side */
+                left: calc(50% - 240px - 10px);
+                transform: translateX(-100%);
+                opacity: 0;
+                pointer-events: none;
+                box-shadow: 4px 0 30px rgba(0,0,0,0.5);
+                border-radius: 0 12px 12px 0;
+            }
+            
+            .settings-menu.active {
+                left: calc(50% - 240px - 10px);
+                transform: translateX(-100%);
+                opacity: 1;
+                pointer-events: auto;
+            }
         }
         
         .settings-header {
@@ -9320,8 +9366,9 @@
             </svg>
             <div style="display: flex; flex-direction: column; line-height: 1.2;">
                 <span>Game Shelf</span>
-                <span id="header-version-badge" style="font-size: 0.55rem; color: var(--accent-orange); font-weight: 600;">v1.3.52</span>
+                <span id="header-version-badge" style="font-size: 0.55rem; color: var(--accent-orange); font-weight: 600;">v1.4.4</span>
             </div>
+            <a href="https://gameshelf.co/beta/" class="beta-badge-link" target="_blank">BETA</a>
         </div>
         <div class="header-right">
             <button class="header-btn" id="header-share-btn" onclick="quickShareRecap()" title="Share Today's Results">📤</button>
@@ -9592,9 +9639,27 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Legal -->
+            <div class="settings-section" style="border-top: 1px solid var(--border); margin-top: 8px; padding-top: 16px;">
+                <div class="settings-section-title">📜 Legal</div>
+                <a class="settings-link" href="https://gameshelf.co/terms" target="_blank">
+                    <span class="icon">📋</span>
+                    Terms of Service
+                    <span class="menu-chevron">›</span>
+                </a>
+                <a class="settings-link" href="https://gameshelf.co/privacy" target="_blank" style="margin-top: 8px;">
+                    <span class="icon">🔒</span>
+                    Privacy Policy
+                    <span class="menu-chevron">›</span>
+                </a>
+                <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 12px; text-align: center; line-height: 1.4;">
+                    Game Shelf is not affiliated with The New York Times,<br>LinkedIn, or any game publisher.
+                </p>
+            </div>
         </div>
         <div class="settings-footer">
-            <div class="settings-version">Game Shelf PWA v1.3.52</div>
+            <div class="settings-version">Game Shelf PWA v1.4.4</div>
         </div>
     </div>
     
@@ -10213,6 +10278,14 @@
                 <button class="setup-btn setup-btn-secondary" onclick="setupGoToScreen('setup-select-games')" style="margin-top: 12px;">
                     Choose My Own Games
                 </button>
+                
+                <!-- Terms acknowledgment -->
+                <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 20px; text-align: center; line-height: 1.5;">
+                    By continuing, you agree to our<br>
+                    <a href="https://gameshelf.co/terms" target="_blank" style="color: var(--accent);">Terms of Service</a> 
+                    and 
+                    <a href="https://gameshelf.co/privacy" target="_blank" style="color: var(--accent);">Privacy Policy</a>
+                </p>
             </div>
         </div>
         
@@ -11005,6 +11078,12 @@
                     <div class="hint-game-chip" onclick="selectHintGame('slate')">📝 Slate</div>
                 </div>
             </div>
+            
+            <!-- Disclaimer -->
+            <p style="font-size: 0.65rem; color: var(--text-muted); text-align: center; margin-top: 16px; padding: 0 16px; line-height: 1.4;">
+                Hints are AI-generated and may not always be accurate.<br>
+                Game Shelf is not affiliated with game publishers.
+            </p>
         </div>
     </div>
     
@@ -12724,7 +12803,7 @@
                 return;
             }
             
-            // v1.3.52: Use UID directly for simpler friend links
+            // v1.4.1: Use UID directly for simpler friend links
             const link = `${window.location.origin}${window.location.pathname}?friend=${currentUser.uid}`;
             const message = `Add me on Game Shelf! 🎮\n\nTrack daily puzzles, compete in battles, and build streaks together.\n\n${link}`;
             
@@ -17541,9 +17620,13 @@
             if (newSetting !== null) {
                 return newSetting === 'true';
             }
-            // Migrate from old setting
+            // Migrate from old setting if it exists
             const oldSetting = localStorage.getItem('gameshelf_feedback_mode');
-            return oldSetting === 'true';
+            if (oldSetting !== null) {
+                return oldSetting === 'true';
+            }
+            // Default to enabled
+            return true;
         }
         
         function initHelpButton() {
@@ -18860,10 +18943,17 @@
         }
         
         // ============ WHAT'S NEW SYSTEM ============
-        const APP_VERSION = '1.3.52';
+        const APP_VERSION = '1.4.4';
         
         const RELEASE_NOTES = {
-            '1.3.52': [
+            '1.4.4': [
+                { icon: '🔕', title: 'Less Intrusive Updates', desc: "What's New no longer auto-pops up - check Help when you see the badge" }
+            ],
+            '1.4.3': [
+                { icon: '❓', title: 'Help Button On by Default', desc: 'Help button now shows by default for new users' },
+                { icon: '🖥️', title: 'Desktop Menu Fix', desc: 'Settings menu now appears beside the app on desktop instead of covering it' }
+            ],
+            '1.4.1': [
                 { icon: '📊', title: 'Enhanced Analytics', desc: 'Better tracking for Morning Review, hints, insights, and social features' }
             ],
             '1.3.47': [
@@ -19007,12 +19097,9 @@
         
         function checkForWhatsNew() {
             if (hasUnseenUpdate()) {
-                // Show badge on menu
+                // Show badge on menu - user can click Help to see What's New
                 updateWhatsNewBadge(true);
-                // Auto-show What's New after brief delay (let app render first)
-                setTimeout(() => {
-                    showWhatsNew(true); // true = auto-triggered
-                }, 1500);
+                // No auto-popup - What's New is accessible from Help section
             }
         }
         
@@ -25464,7 +25551,7 @@
                 return;
             }
             
-            // v1.3.52: Removed auto-clear for already-logged games
+            // v1.4.1: Removed auto-clear for already-logged games
             // User might want hints even after completing the game
             // The lastLaunchedGame is still useful for hint selection
             
@@ -26851,6 +26938,13 @@ Hint levels:
             yesterday.setDate(yesterday.getDate() - 1);
             const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
             
+            // DEBUG: Log inputs
+            console.log('🌅 [MR Debug] gatherUserStatsForMorningReview called with gameIds:', gameIds);
+            console.log('🌅 [MR Debug] yesterdayKey:', yesterdayKey);
+            console.log('🌅 [MR Debug] appData.stats keys:', Object.keys(appData?.stats || {}));
+            console.log('🌅 [MR Debug] appData.stats full:', JSON.stringify(appData?.stats || {}, null, 2));
+            console.log('🌅 [MR Debug] appData.history[yesterdayKey]:', JSON.stringify(appData?.history?.[yesterdayKey] || {}, null, 2));
+            
             // Map morning review game IDs back to shelf game IDs for data lookup
             const gameIdMap = {
                 'wordle': ['wordle', 'nyt-wordle'],
@@ -26919,6 +27013,9 @@ Hint levels:
                 nearestMilestone: nearestMilestone
             };
             
+            // DEBUG: Log final output
+            console.log('🌅 [MR Debug] Final userStats being returned:', JSON.stringify(stats, null, 2));
+            
             return stats;
         }
         
@@ -26965,6 +27062,12 @@ Hint levels:
                 
                 // Gather user stats for personalized greeting
                 const userStats = gatherUserStatsForMorningReview(userGames);
+                
+                // DEBUG: Log what we're sending to Firebase
+                console.log('🌅 [MR Debug] About to call getMorningReview with:');
+                console.log('🌅 [MR Debug]   games:', userGames);
+                console.log('🌅 [MR Debug]   date:', dateOption);
+                console.log('🌅 [MR Debug]   userStats:', JSON.stringify(userStats, null, 2));
                 
                 // Call Firebase function
                 const getMorningReviewFn = firebase.functions().httpsCallable('getMorningReview');
@@ -28707,7 +28810,7 @@ Hint levels:
         
         // ============ LOG SHEET (Manual Entry) ============
         function openLogSheet() {
-            // v1.3.52: Simplified to manual entry only
+            // v1.4.1: Simplified to manual entry only
             document.getElementById('log-sheet').classList.add('active');
             renderQuickLogButtons();
             
@@ -29265,7 +29368,7 @@ Hint levels:
             return null;
         }
         
-        // v1.3.52: Robust image inversion with debugging and error handling
+        // v1.4.1: Robust image inversion with debugging and error handling
         async function invertImage(blob) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
@@ -29331,14 +29434,14 @@ Hint levels:
         }
         
         // Process screenshot from clipboard
-        // v1.3.52: Try BOTH original and inverted, use whichever PARSES successfully
+        // v1.4.1: Try BOTH original and inverted, use whichever PARSES successfully
         async function processScreenshot(blob) {
             try {
                 // Initialize Tesseract worker if needed
                 if (!ocrWorker) {
                     showToast('🔄 Loading OCR engine...', 'info');
                     ocrWorker = await Tesseract.createWorker('eng');
-                    // v1.3.52: Set PSM 3 (fully automatic page segmentation) for better number recognition
+                    // v1.4.1: Set PSM 3 (fully automatic page segmentation) for better number recognition
                     // PSM 6 (uniform block) misses the large stat numbers, PSM 3/4 find them
                     await ocrWorker.setParameters({
                         tessedit_pageseg_mode: Tesseract.PSM.AUTO  // PSM 3
@@ -30115,7 +30218,7 @@ Hint levels:
                 setTimeout(() => { recordButtonHandled = false; }, 500);
             }
         }
-        // v1.3.52: Cancel long-press if user is scrolling (touchmove)
+        // v1.4.1: Cancel long-press if user is scrolling (touchmove)
         function handleRecordButtonMove(e) {
             if (recordButtonTimer) {
                 clearTimeout(recordButtonTimer);
@@ -30134,9 +30237,9 @@ Hint levels:
             if (quickOptions) quickOptions.style.display = 'none';
         }
         
-        // v1.3.52: switchLogTab kept for backwards compatibility but tabs removed from UI
+        // v1.4.1: switchLogTab kept for backwards compatibility but tabs removed from UI
         function switchLogTab(tab) {
-            // No-op - tabs removed in v1.3.52
+            // No-op - tabs removed in v1.4.1
             if (tab === 'quick') {
                 renderQuickLogButtons();
                 const quickOptions = document.getElementById('quick-log-options');
@@ -34456,7 +34559,7 @@ Hint levels:
         {
           "id": "install-app",
           "q": "How do I install Game Shelf on my phone?",
-          "a": "Game Shelf is a **web app** (PWA) that installs directly from your browser—no App Store needed.\n\n**iPhone/iPad (Safari):**\n1. Open **gameshelf.co** in Safari\n2. Tap the **Share** button (square with arrow)\n3. Scroll down and tap **Add to Home Screen**\n4. Tap **Add**\n\n**Android (Chrome):**\n1. Open **gameshelf.co** in Chrome\n2. Tap the **three-dot menu** (top right)\n3. Tap **Add to Home Screen** or **Install App**\n4. Tap **Install**\n\n**Desktop (Chrome/Edge):**\n1. Open **gameshelf.co**\n2. Click the **install icon** in the address bar\n3. Click **Install**\n\nOnce installed, Game Shelf works like a native app with its own icon.",
+          "a": "Game Shelf is a **web app** (PWA) that installs directly from your browser—no App Store needed.\n\n**iPhone/iPad (Safari):**\n1. Open **gameshelf.co/app** in Safari\n2. Tap the **Share** button (square with arrow)\n3. Scroll down and tap **Add to Home Screen**\n4. Tap **Add**\n\n**Android (Chrome):**\n1. Open **gameshelf.co/app** in Chrome\n2. Tap the **three-dot menu** (top right)\n3. Tap **Add to Home Screen** or **Install App**\n4. Tap **Install**\n\n**Desktop (Chrome/Edge):**\n1. Open **gameshelf.co/app**\n2. Click the **install icon** in the address bar\n3. Click **Install**\n\nOnce installed, Game Shelf works like a native app with its own icon.",
           "keywords": ["install", "download", "app", "home screen", "pwa", "add", "phone", "iphone", "android", "safari", "chrome", "how to get"]
         },
         {
@@ -34480,7 +34583,7 @@ Hint levels:
         {
           "id": "website-vs-app",
           "q": "What's the difference between the website and the app?",
-          "a": "**They're the same thing!** Game Shelf is a Progressive Web App (PWA), meaning the website *becomes* the app when you install it.\n\n**Why no App Store?**\n- Faster updates (no approval delays)\n- Works on all platforms\n- No download size—it's already loaded\n\nWhether you use gameshelf.co in a browser or install it to your home screen, you get the full experience.",
+          "a": "**They're the same thing!** Game Shelf is a Progressive Web App (PWA), meaning the website *becomes* the app when you install it.\n\n**Why no App Store?**\n- Faster updates (no approval delays)\n- Works on all platforms\n- No download size—it's already loaded\n\nWhether you use gameshelf.co/app in a browser or install it to your home screen, you get the full experience.",
           "keywords": ["website", "app", "difference", "app store", "play store", "native", "pwa", "same", "web app"]
         },
         {
@@ -35310,7 +35413,7 @@ Hint levels:
         {
           "id": "pwa-not-updating",
           "q": "The app seems stuck on an old version.",
-          "a": "**For PWA (installed to home screen):**\n\n1. Menu → Advanced → **Force Update Check**\n2. If that doesn't work: Close app completely, reopen\n3. Last resort: Uninstall PWA, revisit gameshelf.co, reinstall\n\n**Check version:** Menu → scroll to bottom → see version number\n\n**Desktop:** Try hard refresh (Ctrl+Shift+R or Cmd+Shift+R)",
+          "a": "**For PWA (installed to home screen):**\n\n1. Menu → Advanced → **Force Update Check**\n2. If that doesn't work: Close app completely, reopen\n3. Last resort: Uninstall PWA, revisit gameshelf.co/app, reinstall\n\n**Check version:** Menu → scroll to bottom → see version number\n\n**Desktop:** Try hard refresh (Ctrl+Shift+R or Cmd+Shift+R)",
           "keywords": ["update", "old version", "stuck", "pwa", "refresh", "outdated"]
         },
         {
