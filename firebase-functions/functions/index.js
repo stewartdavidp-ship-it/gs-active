@@ -1,5 +1,6 @@
 /**
  * Game Shelf Firebase Cloud Functions
+ * Version: 2.3.0 - Added daily stats email via SendGrid
  * 
  * FUNCTIONS:
  * - getHint: AI-powered hints with caching
@@ -18,6 +19,9 @@
  * - setUserType: Admin placeholder
  * - calculateBattleScore: Server-side battle scoring (DB trigger)
  * - checkBattleCompletion: Hourly auto-complete expired battles
+ * - getUserStats: Admin stats for Command Center
+ * - dailyUserStatsEmail: Daily stats email via SendGrid (8am ET)
+ * - testDailyStatsEmail: Manual trigger for testing
  * 
  * SETUP:
  * 1. Set the Anthropic API key:
@@ -910,7 +914,8 @@ async function generatePersonalGreeting(apiKey, userStats) {
     
     console.log('Generating personal greeting...');
     
-    try {
+    // Helper to make API call (no retry - fail fast to avoid timeout)
+    const makeApiCall = async () => {
         const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
@@ -922,11 +927,27 @@ async function generatePersonalGreeting(apiKey, userStats) {
         });
         
         if (!response.ok) {
-            console.error('Personal greeting API error:', response.status);
-            return DEFAULT_PERSONAL_GREETING;
+            // Get the error body for detailed logging
+            let errorBody = null;
+            try {
+                errorBody = await response.json();
+            } catch (e) {
+                errorBody = await response.text();
+            }
+            
+            console.error('Personal greeting API error:', response.status, JSON.stringify(errorBody));
+            return null;
         }
         
-        const result = await response.json();
+        return response.json();
+    };
+    
+    try {
+        const result = await makeApiCall();
+        
+        if (!result) {
+            return DEFAULT_PERSONAL_GREETING;
+        }
         
         // Extract text content
         const textContent = result.content
@@ -958,23 +979,99 @@ async function generatePersonalGreeting(apiKey, userStats) {
     }
 }
 
+// Game configuration for Morning Review - maps game IDs to display names and rules
+const MORNING_REVIEW_GAME_CONFIG = {
+    'wordle': { name: 'Wordle (NYT)', rule: '' },
+    'connections': { name: 'Connections (NYT)', rule: ' - NEVER mention themes, categories, word types, or what connects anything' },
+    'strands': { name: 'Strands (NYT)', rule: ' - NEVER mention the theme or what words relate to' },
+    'mini': { name: 'Mini Crossword (NYT)', rule: '' },
+    'spelling-bee': { name: 'Spelling Bee (NYT)', rule: ' - NEVER mention the letters or pangram hints' },
+    'linkedin-queens': { name: 'Queens (LinkedIn)', rule: '' },
+    'linkedin-pinpoint': { name: 'Pinpoint (LinkedIn)', rule: ' - NEVER mention the category or what the 5 clues relate to' },
+    'quordle': { name: 'Quordle', rule: '' },
+    'octordle': { name: 'Octordle', rule: '' },
+    'waffle': { name: 'Waffle', rule: '' }
+};
+
+// Default games to generate on first request (keep it light - 5 max)
+const DEFAULT_MORNING_REVIEW_GAMES = ['wordle', 'connections', 'strands', 'mini', 'spelling-bee'];
+
+// Generate snippet for a single game (used for on-demand expansion)
+async function generateSingleGameSnippet(apiKey, dateStr, gameId) {
+    const gameConfig = MORNING_REVIEW_GAME_CONFIG[gameId];
+    if (!gameConfig) {
+        console.log(`Unknown game for Morning Review: ${gameId}`);
+        return null;
+    }
+    
+    const prompt = `Today is ${dateStr}. Search for info about today's ${gameConfig.name} puzzle and create a SPOILER-FREE hype snippet.
+
+CRITICAL: Your snippet must NOT help players solve the puzzle. Only describe your FEELINGS about difficulty.
+${gameConfig.rule}
+
+Remember: Talk about HOW HARD it felt, not WHAT it contains. "This one's tricky" = good. "Think about food" = bad.
+
+Return ONLY a JSON object with this exact format (no markdown):
+{"snippet": "Your 1-2 sentence difficulty vibe here, or null if you can't find info"}`;
+
+    const requestBody = {
+        model: AI_MODEL,
+        max_tokens: 200,
+        system: MORNING_REVIEW_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: prompt }],
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+    };
+    
+    console.log(`Generating single snippet for ${gameId}...`);
+    
+    try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (!response.ok) {
+            console.error(`Single game snippet API error for ${gameId}:`, response.status);
+            return null;
+        }
+        
+        const result = await response.json();
+        const textContent = result.content
+            ?.filter(block => block.type === 'text')
+            ?.map(block => block.text)
+            ?.join('')?.trim() || '';
+        
+        // Parse the JSON response
+        const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            console.log(`Generated snippet for ${gameId}: ${parsed.snippet?.substring(0, 50)}...`);
+            return parsed.snippet || null;
+        }
+        return null;
+    } catch (error) {
+        console.error(`Error generating snippet for ${gameId}:`, error.message);
+        return null;
+    }
+}
+
 // Generate morning review from AI
 async function generateMorningReviewFromAI(apiKey, dateStr) {
     const prompt = `Today is ${dateStr}. Search for info about today's puzzles and create a SPOILER-FREE hype preview.
 
 CRITICAL: Your snippets must NOT help players solve puzzles. Only describe your FEELINGS about difficulty.
 
-Generate snippets for these games (return null if you can't find info):
+Generate snippets for these 5 games (return null if you can't find info):
 1. Wordle (NYT)
 2. Connections (NYT) - NEVER mention themes, categories, word types, or what connects anything
 3. Strands (NYT) - NEVER mention the theme or what words relate to
 4. Mini Crossword (NYT)
-5. Queens (LinkedIn)
-6. Pinpoint (LinkedIn) - NEVER mention the category or what the 5 clues relate to
-7. Quordle
-8. Octordle
-9. Waffle
-10. Spelling Bee (NYT) - NEVER mention the letters or pangram hints
+5. Spelling Bee (NYT) - NEVER mention the letters or pangram hints
 
 Remember: Talk about HOW HARD it felt, not WHAT it contains. "This one's tricky" = good. "Think about food" = bad.
 
@@ -988,11 +1085,6 @@ Return this exact JSON:
     "connections": "Difficulty vibe only, 1-2 sentences or null",
     "strands": "Difficulty vibe only, 1-2 sentences or null",
     "mini": "Difficulty vibe only, 1-2 sentences or null",
-    "linkedin-queens": "Difficulty vibe only, 1-2 sentences or null",
-    "linkedin-pinpoint": "Difficulty vibe only, 1-2 sentences or null",
-    "quordle": "Difficulty vibe only, 1-2 sentences or null",
-    "octordle": "Difficulty vibe only, 1-2 sentences or null",
-    "waffle": "Difficulty vibe only, 1-2 sentences or null",
     "spelling-bee": "Difficulty vibe only, 1-2 sentences or null"
   },
   "outro": "Motivational sendoff (under 8 words)"
@@ -1126,7 +1218,31 @@ exports.getMorningReview = functions.https.onCall(async (data, context) => {
     const apiKey = getApiKey();
     
     if (cached) {
-        // Splice games based on user's shelf
+        // Check which user games are already cached vs missing
+        const cachedGameIds = Object.keys(cached.games).filter(g => cached.games[g]);
+        const missingGames = games.filter(gameId => 
+            !cached.games[gameId] && MORNING_REVIEW_GAME_CONFIG[gameId]
+        );
+        
+        // Generate missing games on-demand (max 5 at a time to avoid rate limits)
+        // Only do this for "today" requests, not "yesterday"
+        if (missingGames.length > 0 && !isYesterday && apiKey) {
+            const gamesToGenerate = missingGames.slice(0, 5);
+            console.log(`Generating ${gamesToGenerate.length} missing game snippets: ${gamesToGenerate.join(', ')}`);
+            
+            // Generate snippets sequentially to avoid rate limits
+            for (const gameId of gamesToGenerate) {
+                const snippet = await generateSingleGameSnippet(apiKey, dateStr, gameId);
+                if (snippet) {
+                    // Add to cache
+                    await db.ref(`morning-review/${dateKey}/games/${gameId}`).set(snippet);
+                    cached.games[gameId] = snippet;
+                    console.log(`Added ${gameId} to morning review cache`);
+                }
+            }
+        }
+        
+        // Splice games based on user's shelf (now includes any newly generated)
         const userGames = games
             .filter(gameId => cached.games[gameId])
             .map(gameId => ({
@@ -1158,6 +1274,7 @@ exports.getMorningReview = functions.https.onCall(async (data, context) => {
                 hasPersonalGreeting: personalGreeting !== DEFAULT_PERSONAL_GREETING,
                 fromCache: true,
                 isYesterday: isYesterday,
+                gamesExpanded: missingGames.length > 0 ? missingGames.slice(0, 5) : null,
                 timestamp: admin.database.ServerValue.TIMESTAMP
             });
         } catch (e) {
@@ -1194,19 +1311,21 @@ exports.getMorningReview = functions.https.onCall(async (data, context) => {
         );
     }
     
-    // 9. Generate the morning review
+    // 9. Generate personal greeting FIRST (small call, no web search)
+    // This runs before the heavy game snippets generation to avoid rate limits
+    let personalGreeting = DEFAULT_PERSONAL_GREETING;
+    if (userStats) {
+        console.log('Generating personal greeting BEFORE game snippets...');
+        personalGreeting = await generatePersonalGreeting(apiKey, userStats);
+        await cachePersonalGreeting(dateKey, odometerId, personalGreeting);
+    }
+    
+    // 10. Generate the morning review (heavy call with web search)
     try {
         const reviewData = await generateMorningReviewFromAI(apiKey, dateStr);
         
-        // 10. Cache game snippets for other users
+        // 11. Cache game snippets for other users
         await cacheMorningReview(dateKey, reviewData);
-        
-        // 11. Generate and cache personal greeting
-        let personalGreeting = DEFAULT_PERSONAL_GREETING;
-        if (userStats) {
-            personalGreeting = await generatePersonalGreeting(apiKey, userStats);
-            await cachePersonalGreeting(dateKey, odometerId, personalGreeting);
-        }
         
         // 12. Splice games based on user's shelf
         const userGames = games
@@ -2264,3 +2383,288 @@ exports.checkBattleCompletion = functions.pubsub
         return null;
     });
 
+// ============ ADMIN: USER STATS ============
+
+/**
+ * Get user statistics for Command Center
+ * Returns aggregate counts only, no personal data
+ * Only callable by authenticated admin users
+ */
+exports.getUserStats = functions.https.onCall(async (data, context) => {
+    // Require authentication
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
+    }
+    
+    // Optional: Restrict to specific admin UIDs
+    const ADMIN_UIDS = [
+        'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'  // stewartdavidp@gmail.com
+    ];
+    
+    if (!ADMIN_UIDS.includes(context.auth.uid)) {
+        throw new functions.https.HttpsError('permission-denied', 'Admin access required');
+    }
+    
+    try {
+        const usersSnapshot = await db.ref('users').once('value');
+        const users = usersSnapshot.val() || {};
+        const userList = Object.entries(users);
+        
+        // Calculate stats
+        const now = Date.now();
+        const oneDayAgo = now - (24 * 60 * 60 * 1000);
+        const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+        const thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000);
+        
+        let activeToday = 0;
+        let activeWeek = 0;
+        let activeMonth = 0;
+        let newToday = 0;
+        let newWeek = 0;
+        
+        userList.forEach(([id, user]) => {
+            const lastVisit = user.lastVisit || 0;
+            const createdAt = user.createdAt || 0;
+            
+            if (lastVisit > oneDayAgo) activeToday++;
+            if (lastVisit > sevenDaysAgo) activeWeek++;
+            if (lastVisit > thirtyDaysAgo) activeMonth++;
+            if (createdAt > oneDayAgo) newToday++;
+            if (createdAt > sevenDaysAgo) newWeek++;
+        });
+        
+        return {
+            total: userList.length,
+            activeToday,
+            activeWeek,
+            activeMonth,
+            newToday,
+            newWeek,
+            timestamp: now
+        };
+    } catch (error) {
+        console.error('getUserStats error:', error);
+        throw new functions.https.HttpsError('internal', 'Failed to get user stats');
+    }
+});
+
+// ============ DAILY STATS EMAIL ============
+
+/**
+ * Send daily user stats email via SendGrid
+ * Runs every day at 8:00 AM Eastern
+ * 
+ * SETUP:
+ * 1. Create SendGrid account at https://sendgrid.com
+ * 2. Create an API key with Mail Send permissions
+ * 3. Set the environment variable:
+ *    firebase functions:config:set sendgrid.api_key="SG.xxxxx"
+ *    firebase functions:config:set sendgrid.to_email="your@email.com"
+ * 4. Deploy: firebase deploy --only functions
+ */
+exports.dailyUserStatsEmail = functions.pubsub
+    .schedule('0 8 * * *')
+    .timeZone('America/New_York')
+    .onRun(async (context) => {
+        const config = functions.config();
+        const sendgridApiKey = config.sendgrid?.api_key || process.env.SENDGRID_API_KEY;
+        const toEmail = config.sendgrid?.to_email || process.env.SENDGRID_TO_EMAIL;
+        
+        if (!sendgridApiKey || !toEmail) {
+            console.log('SendGrid not configured - skipping daily email');
+            return null;
+        }
+        
+        try {
+            // Get user stats
+            const usersSnapshot = await db.ref('users').once('value');
+            const users = usersSnapshot.val() || {};
+            const userList = Object.entries(users);
+            
+            const now = Date.now();
+            const oneDayAgo = now - (24 * 60 * 60 * 1000);
+            const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+            const thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000);
+            
+            let activeToday = 0, activeWeek = 0, activeMonth = 0;
+            let newToday = 0, newWeek = 0;
+            
+            userList.forEach(([id, user]) => {
+                const lastVisit = user.lastVisit || 0;
+                const createdAt = user.createdAt || 0;
+                
+                if (lastVisit > oneDayAgo) activeToday++;
+                if (lastVisit > sevenDaysAgo) activeWeek++;
+                if (lastVisit > thirtyDaysAgo) activeMonth++;
+                if (createdAt > oneDayAgo) newToday++;
+                if (createdAt > sevenDaysAgo) newWeek++;
+            });
+            
+            const total = userList.length;
+            const retention30 = total > 0 ? Math.round((activeMonth / total) * 100) : 0;
+            const retention7 = total > 0 ? Math.round((activeWeek / total) * 100) : 0;
+            
+            // Get hint usage stats
+            const hintUsageSnapshot = await db.ref('hint-usage').once('value');
+            const hintUsage = hintUsageSnapshot.val() || {};
+            let totalHints = 0;
+            let hintsToday = 0;
+            
+            Object.values(hintUsage).forEach(user => {
+                if (user.requests && Array.isArray(user.requests)) {
+                    totalHints += user.requests.length;
+                    user.requests.forEach(ts => {
+                        if (ts > oneDayAgo) hintsToday++;
+                    });
+                }
+            });
+            
+            // Format date
+            const dateStr = new Date().toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                timeZone: 'America/New_York'
+            });
+            
+            // Build email HTML
+            const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1e293b; color: #e2e8f0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: #0f172a; border-radius: 12px; padding: 24px; }
+        h1 { color: #818cf8; margin-bottom: 8px; }
+        .date { color: #94a3b8; margin-bottom: 24px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: #1e293b; border-radius: 8px; padding: 16px; text-align: center; }
+        .stat-value { font-size: 32px; font-weight: bold; }
+        .stat-label { color: #94a3b8; font-size: 14px; margin-top: 4px; }
+        .highlight { background: linear-gradient(135deg, #4f46e5, #7c3aed); }
+        .green { color: #4ade80; }
+        .blue { color: #60a5fa; }
+        .amber { color: #fbbf24; }
+        .cyan { color: #22d3ee; }
+        .teal { color: #2dd4bf; }
+        h2 { color: #e2e8f0; font-size: 18px; margin-top: 24px; margin-bottom: 16px; }
+        .footer { color: #64748b; font-size: 12px; margin-top: 24px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Game Shelf Daily Stats</h1>
+        <div class="date">${dateStr}</div>
+        
+        <div class="stats-grid">
+            <div class="stat-card highlight">
+                <div class="stat-value" style="color: white;">${total}</div>
+                <div class="stat-label" style="color: #c7d2fe;">Total Users</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value green">${activeMonth}</div>
+                <div class="stat-label">Active (30d)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value blue">${activeWeek}</div>
+                <div class="stat-label">Active (7d)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value amber">${activeToday}</div>
+                <div class="stat-label">Active Today</div>
+            </div>
+        </div>
+        
+        <h2>📈 Growth</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value teal">+${newToday}</div>
+                <div class="stat-label">New Today</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value cyan">+${newWeek}</div>
+                <div class="stat-label">New This Week</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" style="color: #a78bfa;">${retention30}%</div>
+                <div class="stat-label">30-Day Retention</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" style="color: #f472b6;">${retention7}%</div>
+                <div class="stat-label">7-Day Retention</div>
+            </div>
+        </div>
+        
+        <h2>🤖 Hints</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" style="color: #fb923c;">${hintsToday}</div>
+                <div class="stat-label">Hints Today</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" style="color: #94a3b8;">${totalHints}</div>
+                <div class="stat-label">Total Hints</div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            Game Shelf • <a href="https://gameshelf.co" style="color: #818cf8;">gameshelf.co</a>
+        </div>
+    </div>
+</body>
+</html>`;
+
+            // Send via SendGrid API
+            const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${sendgridApiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    personalizations: [{ to: [{ email: toEmail }] }],
+                    from: { email: 'stats@gameshelf.co', name: 'Game Shelf Stats' },
+                    subject: `📊 Game Shelf Stats - ${total} users, ${activeToday} active today`,
+                    content: [
+                        { type: 'text/html', value: emailHtml }
+                    ]
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.text();
+                console.error('SendGrid error:', error);
+                throw new Error(`SendGrid failed: ${response.status}`);
+            }
+            
+            console.log(`Daily stats email sent to ${toEmail}`);
+            return null;
+            
+        } catch (error) {
+            console.error('dailyUserStatsEmail error:', error);
+            return null;
+        }
+    });
+
+/**
+ * Manual trigger to test the daily stats email
+ * Call via: firebase functions:call testDailyStatsEmail
+ */
+exports.testDailyStatsEmail = functions.https.onCall(async (data, context) => {
+    // Require authentication
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Must be logged in');
+    }
+    
+    // Only allow admin
+    const ADMIN_UIDS = ['oUt4ba0dYVRBfPREqoJ1yIsJKjr1'];
+    if (!ADMIN_UIDS.includes(context.auth.uid)) {
+        throw new functions.https.HttpsError('permission-denied', 'Admin access required');
+    }
+    
+    // Trigger the scheduled function manually
+    await exports.dailyUserStatsEmail.run();
+    
+    return { success: true, message: 'Test email sent' };
+});
