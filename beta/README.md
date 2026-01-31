@@ -1,6 +1,6 @@
 # Game Shelf Beta Hub
 
-**Version:** 2.1.3  
+**Version:** 2.3.0  
 **Deploy to:** `gameshelf.co/beta/`
 
 ## User Type System
