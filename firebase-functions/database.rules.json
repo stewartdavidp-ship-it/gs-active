@@ -321,6 +321,140 @@
       ".write": false
     },
     
+    // ========== COMMAND CENTER ==========
+    // Client-side: read-only access to own data (browser dashboard).
+    // Writes go through MCP server (Firebase Admin SDK, bypasses rules).
+    // Indexes required for server-side queries.
+    "command-center": {
+      ".write": false,
+
+      "system": {
+        "oauth": {
+          "tokenIndex": {
+            ".indexOn": ["expiresAt"]
+          },
+          "clients": {
+            ".indexOn": ["created_at"]
+          },
+          "auditLog": {
+            ".indexOn": ["timestamp"]
+          }
+        }
+      },
+
+      "public": {
+        "stats": {
+          ".read": true,
+          ".write": false
+        },
+        "stories": {
+          ".read": false,
+          "$storyId": {
+            ".write": "!data.exists()",
+            ".validate": "newData.hasChildren(['name', 'story', 'createdAt']) && newData.child('name').isString() && newData.child('story').isString() && newData.child('story').val().length <= 2000"
+          }
+        },
+        "session-stories": {
+          ".read": true,
+          ".write": false
+        }
+      },
+
+      "$uid": {
+        ".read": "$uid === auth.uid",
+
+        "oauth": {
+          "tokens": {
+            ".indexOn": ["expiresAt"]
+          }
+        },
+        "documents": {
+          ".indexOn": ["status"]
+        },
+        "sessions": {
+          ".indexOn": ["status"]
+        },
+        "jobs": {
+          ".indexOn": ["status"]
+        },
+        "concepts": {
+          ".indexOn": ["status", "type", "ideaOrigin"]
+        }
+      }
+    },
+
+    // ========== SHIR GLASSWORKS ==========
+    // Public site reads from shirglassworks/public (no auth).
+    // Admin writes require Google Sign-In with whitelisted UID.
+    "shirglassworks": {
+      ".write": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'",
+
+      "public": {
+        ".read": true,
+
+        "events": {
+          ".indexOn": ["date", "visible"],
+          "$eventId": {
+            ".validate": "newData.hasChildren(['date', 'name', 'location', 'visible'])"
+          }
+        },
+        "gallery": {
+          ".indexOn": ["order", "visible", "category"],
+          "$imageId": {
+            ".validate": "newData.hasChildren(['url', 'alt', 'order', 'visible'])"
+          }
+        },
+        "products": {
+          "$productId": {
+            ".validate": "newData.hasChildren(['pid', 'name', 'url', 'categories', 'images'])"
+          }
+        }
+      },
+
+      "admin": {
+        ".read": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'",
+        ".write": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'"
+      },
+
+      // Analytics: anonymous push-only writes, admin-only reads
+      "analytics": {
+        "hits": {
+          ".read": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'",
+          ".indexOn": ["ts", "d"],
+          "$hitId": {
+            ".write": "!data.exists()",
+            ".validate": "newData.hasChildren(['t','p','ts','d']) && (newData.child('t').val() === 'pv' || newData.child('t').val() === 'ev') && newData.child('ts').isNumber() && newData.child('ts').val() > 1700000000000 && newData.child('ts').val() < 2000000000000 && newData.child('p').isString() && newData.child('p').val().length <= 20 && newData.child('d').isString() && newData.child('d').val().length === 10 && (!newData.hasChild('a') || (newData.child('a').isString() && newData.child('a').val().length <= 40)) && (!newData.hasChild('ip') || (newData.child('ip').isString() && newData.child('ip').val().length <= 45))"
+          }
+        }
+      },
+
+      // User carts: each authenticated user can read/write their own cart
+      "users": {
+        "$uid": {
+          ".read": "auth.uid === $uid",
+          ".write": "auth.uid === $uid",
+          "cart": {
+            "$itemId": {
+              ".validate": "newData.hasChildren(['pid','name','qty']) && newData.child('pid').isString() && newData.child('qty').isNumber() && newData.child('qty').val() >= 1 && newData.child('qty').val() <= 10"
+            }
+          }
+        }
+      },
+
+      // Orders: written by Cloud Functions (submit) + admin (status updates)
+      "orders": {
+        ".read": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'",
+        ".write": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'",
+        ".indexOn": ["squareOrderId", "etsyReceiptId", "source"]
+      },
+
+      // Private config: Square credentials, admin-only
+      "config": {
+        ".read": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'",
+        ".write": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'"
+      }
+    },
+
     // ========== DEFAULT DENY ==========
     // Deny all other paths
     "$other": {
