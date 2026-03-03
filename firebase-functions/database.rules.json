@@ -413,7 +413,24 @@
 
       "admin": {
         ".read": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'",
-        ".write": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'"
+        ".write": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'",
+        "sales": {
+          ".indexOn": ["timestamp", "status", "paymentType", "eventId"]
+        },
+        "salesEvents": {
+          ".indexOn": ["date", "status"]
+        },
+        "locations": {
+          ".indexOn": ["status", "type", "createdAt"]
+        },
+        "square-payments": {
+          ".indexOn": ["createdAt", "matchedSaleId", "status"]
+        }
+      },
+
+      // Image library: public read (shop/gallery display), admin write (via top-level .write)
+      "images": {
+        ".read": true
       },
 
       // Analytics: anonymous push-only writes, admin-only reads
