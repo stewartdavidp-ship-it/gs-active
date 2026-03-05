@@ -406,7 +406,7 @@
         },
         "products": {
           "$productId": {
-            ".validate": "newData.hasChildren(['pid', 'name', 'url', 'categories', 'images'])"
+            ".validate": "newData.hasChildren(['pid', 'name', 'url', 'categories'])"
           }
         }
       },
@@ -414,6 +414,22 @@
       "admin": {
         ".read": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'",
         ".write": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'",
+
+        // RBAC roles — any authenticated user can read (to cache their permission config)
+        "roles": {
+          ".read": "auth != null"
+        },
+
+        // RBAC user records — users can read their own record and create it on first sign-in
+        // (guest auto-provisioning). Cannot update own record (role elevation blocked).
+        // Admin can read/write all (inherited from parent rules).
+        "users": {
+          "$uid": {
+            ".read": "auth.uid === $uid",
+            ".write": "auth.uid === $uid && !data.exists()"
+          }
+        },
+
         "sales": {
           ".indexOn": ["timestamp", "status", "paymentType", "eventId"]
         },
@@ -425,6 +441,29 @@
         },
         "square-payments": {
           ".indexOn": ["createdAt", "matchedSaleId", "status"]
+        },
+
+        // Audit trail — global chronological log (Phase E2)
+        // Append-only: any authenticated user can create entries, nobody can update/delete
+        // Admin-only reads (inherited from parent .read)
+        "auditLog": {
+          ".indexOn": ["time", "event/entity"],
+          "$entryId": {
+            ".write": "auth != null && !data.exists()",
+            ".validate": "newData.hasChildren(['event', 'actor', 'time'])"
+          }
+        },
+
+        // Audit trail — per-entity index for record-level history
+        "auditIndex": {
+          "$entity": {
+            "$entityId": {
+              "$entryId": {
+                ".write": "auth != null && !data.exists()",
+                ".validate": "newData.hasChildren(['event', 'actor', 'time'])"
+              }
+            }
+          }
         }
       },
 
