@@ -411,9 +411,25 @@
         }
       },
 
+      // Customer accounts — each authenticated user can read/write their own record
+      "customers": {
+        "$uid": {
+          ".read": "auth.uid === $uid",
+          ".write": "auth.uid === $uid"
+        }
+      },
+
       "admin": {
-        ".read": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'",
-        ".write": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'",
+        // Read: admin always, or any user with a non-guest RBAC role
+        ".read": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1' || (auth != null && root.child('shirglassworks/admin/users').child(auth.uid).child('role').exists() && root.child('shirglassworks/admin/users').child(auth.uid).child('role').val() !== 'guest')",
+        // Write: admin always, or any user with a non-guest RBAC role
+        ".write": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1' || (auth != null && root.child('shirglassworks/admin/users').child(auth.uid).child('role').exists() && root.child('shirglassworks/admin/users').child(auth.uid).child('role').val() !== 'guest')",
+
+        // Invites — any authenticated user can read (first-login lookup), admin-only write
+        "invites": {
+          ".read": "auth != null",
+          ".write": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1' || (auth != null && root.child('shirglassworks/admin/users').child(auth.uid).child('role').val() === 'admin')"
+        },
 
         // RBAC roles — any authenticated user can read (to cache their permission config)
         "roles": {
@@ -441,6 +457,24 @@
         },
         "square-payments": {
           ".indexOn": ["createdAt", "matchedSaleId", "status"]
+        },
+        "contacts": {
+          "$contactId": {
+            "interactions": {
+              ".indexOn": ["date"]
+            }
+          }
+        },
+
+        // Commissions — anonymous create from public website, admin full CRUD inherited from parent
+        "commissions": {
+          ".indexOn": ["status", "createdAt"],
+          "$commissionId": {
+            // Anonymous users can create new commissions (public form)
+            ".write": "!data.exists()",
+            // Validate core fields exist and status/channel are valid values
+            ".validate": "newData.hasChildren(['customerName', 'customerContact', 'status', 'channel', 'createdAt']) && newData.child('customerName').isString() && newData.child('customerName').val().length >= 1 && newData.child('customerName').val().length <= 200 && newData.child('customerContact').isString() && newData.child('customerContact').val().length >= 1 && newData.child('customerContact').val().length <= 200 && (newData.child('status').val() === 'new' || newData.child('status').val() === 'in-discussion' || newData.child('status').val() === 'accepted' || newData.child('status').val() === 'declined' || newData.child('status').val() === 'built' || newData.child('status').val() === 'completed') && (newData.child('channel').val() === 'web' || newData.child('channel').val() === 'pos' || newData.child('channel').val() === 'phone' || newData.child('channel').val() === 'email' || newData.child('channel').val() === 'in-person' || newData.child('channel').val() === 'social' || newData.child('channel').val() === 'other') && newData.child('createdAt').isString()"
+          }
         },
 
         // Audit trail — global chronological log (Phase E2)
@@ -498,13 +532,22 @@
       },
 
       // Orders: written by Cloud Functions (submit) + admin (status updates)
+      // Individual order status is publicly readable (orderId acts as auth token)
+      // for the confirmation page Firebase listener
       "orders": {
         ".read": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'",
         ".write": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'",
-        ".indexOn": ["squareOrderId", "etsyReceiptId", "source"]
+        ".indexOn": ["squareOrderId", "etsyReceiptId", "source", "uid", "orderNumber"],
+        "$orderId": {
+          "status": {
+            ".read": true
+          }
+        }
       },
 
-      // Private config: Square credentials, admin-only
+      // Private config: admin-only metadata (environment, locationId, shopId, etc.)
+      // Secrets (accessToken, webhookSignatureKey, apiKey, refreshToken) have been migrated
+      // to GCP Secret Manager and removed from RTDB. Admin UI uses shirSecretsManager callable.
       "config": {
         ".read": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'",
         ".write": "auth.uid === 'oUt4ba0dYVRBfPREqoJ1yIsJKjr1'"
