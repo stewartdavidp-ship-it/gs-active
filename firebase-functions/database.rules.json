@@ -6,7 +6,7 @@
       "$uid": {
         ".read": "$uid === auth.uid",
         ".write": "$uid === auth.uid",
-        
+
         "shelf": {
           "wallet": {
             "tokens": {
@@ -18,13 +18,13 @@
               ".validate": "newData.isNumber() && newData.val() >= -1000 && newData.val() <= 10000"
             }
           },
-          
+
           "games": {
             "$gameIndex": {
               ".validate": "newData.hasChildren(['id', 'name'])"
             }
           },
-          
+
           "history": {
             "$date": {
               "$gameId": {
@@ -33,19 +33,19 @@
             }
           }
         },
-        
+
         "displayName": {
           ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 50"
         },
-        
+
         "photoURL": {
           ".validate": "newData.isString() && newData.val().length <= 500"
         },
-        
+
         "friendCode": {
           ".validate": "newData.isString() && newData.val().length >= 4 && newData.val().length <= 20"
         },
-        
+
         // Referral info - can only be set once
         "referral": {
           "referredBy": {
@@ -53,67 +53,67 @@
             ".validate": "newData.isString()"
           }
         },
-        
+
         // Token transaction history
         "tokenHistory": {
           "$transactionId": {
             ".validate": "newData.hasChildren(['type', 'amount', 'timestamp'])"
           }
         },
-        
+
         // Pending rewards from referrals
         "pendingReferralRewards": {
           "$rewardId": {
             ".validate": "newData.hasChildren(['type', 'tokens', 'timestamp'])"
           }
         },
-        
+
         // Purchase lock flag (set by server on chargeback)
         "purchaseLocked": {
           ".write": false
         },
-        
+
         // Account creation timestamp
         "createdAt": {
           ".write": "!data.exists()",
           ".validate": "newData.isNumber()"
         },
-        
+
         // Last visit for activity tracking
         "lastVisit": {
           ".validate": "newData.isNumber()"
         }
       }
     },
-    
+
     // ========== FRIENDS ==========
     // Users can only manage their own friends list
     "friends": {
       "$uid": {
         ".read": "$uid === auth.uid",
         ".write": "$uid === auth.uid",
-        
+
         "$friendUid": {
           ".validate": "newData.hasChildren(['odataId', 'addedAt']) && newData.child('odataId').val() === $friendUid"
         }
       }
     },
-    
+
     // ========== REFERRAL CODES ==========
     // Public read, owner-only write, referees write-once
     "referralCodes": {
       "$code": {
         ".read": true,
         ".write": "!data.exists() || data.child('ownerId').val() === auth.uid",
-        
+
         "ownerId": {
           ".validate": "newData.isString() && newData.val() === auth.uid"
         },
-        
+
         "ownerName": {
           ".validate": "newData.isString() && newData.val().length <= 50"
         },
-        
+
         "referees": {
           "$refereeUid": {
             // Referee entry can only be created once, by the referee themselves
@@ -121,45 +121,45 @@
             ".validate": "newData.hasChildren(['joinedAt']) && newData.child('joinedAt').isNumber()"
           }
         },
-        
+
         "stats": {
           // Stats can be updated by owner
           ".write": "root.child('referralCodes').child($code).child('ownerId').val() === auth.uid"
         }
       }
     },
-    
+
     // ========== BATTLES ==========
     "battles": {
       "$battleId": {
         // Participants and public battles can be read
         ".read": "data.child('participants').child(auth.uid).exists() || data.child('isPublic').val() === true",
-        
+
         // Creator can create battle
         ".write": "!data.exists() && auth != null",
-        
+
         "name": {
           ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 100"
         },
-        
+
         "status": {
           ".validate": "newData.isString() && (newData.val() === 'pending' || newData.val() === 'active' || newData.val() === 'completed')"
         },
-        
+
         "participants": {
           "$participantUid": {
             // Users can only update their own participant entry
             // Can join if battle not completed
             ".write": "$participantUid === auth.uid && (data.exists() || root.child('battles').child($battleId).child('status').val() !== 'completed')",
-            
+
             "displayName": {
               ".validate": "newData.isString() && newData.val().length <= 50"
             },
-            
+
             "score": {
               ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
             },
-            
+
             "games": {
               "$gameId": {
                 ".validate": "newData.isNumber() && newData.val() >= 0"
@@ -167,79 +167,79 @@
             }
           }
         },
-        
+
         "entryFee": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50"
         },
-        
+
         "prizePool": {
           ".validate": "newData.isNumber() && newData.val() >= 0"
         },
-        
+
         "games": {
           ".validate": "newData.isString() || newData.hasChildren()"
         },
-        
+
         "endDate": {
           ".validate": "newData.isNumber()"
         },
-        
+
         "creatorId": {
           ".write": "!data.exists()",
           ".validate": "newData.val() === auth.uid"
         },
-        
+
         "joinCode": {
           ".validate": "newData.isString() && newData.val().length >= 4 && newData.val().length <= 10"
         },
-        
+
         "isPublic": {
           ".validate": "newData.isBoolean()"
         }
       }
     },
-    
+
     // ========== PUBLIC BATTLES LOBBY ==========
     "public-battles": {
       ".read": "auth != null",
-      
+
       "$battleId": {
         ".write": "auth != null && (!data.exists() || data.child('creatorId').val() === auth.uid)",
         ".validate": "newData.hasChildren(['name', 'endDate', 'creatorId'])"
       }
     },
-    
+
     // ========== HINT USAGE (Rate Limiting) ==========
     "hint-usage": {
       "$uid": {
         ".read": "$uid === auth.uid",
         ".write": "$uid === auth.uid",
-        
+
         "requests": {
           ".validate": "newData.hasChildren()"
         }
       }
     },
-    
+
     // ========== FAQ ANALYTICS ==========
     // Users can write their own FAQ usage data for improvement insights
     "faq-analytics": {
       "$uid": {
         ".read": "$uid === auth.uid",
         ".write": "$uid === auth.uid",
-        
+
         "views": {
           "$viewId": {
             ".validate": "newData.hasChildren(['faqId', 'timestamp'])"
           }
         },
-        
+
         "searches": {
           "$searchId": {
             ".validate": "newData.hasChildren(['query', 'resultCount', 'timestamp']) && newData.child('query').val().length <= 100"
           }
         },
-        
+
         "askAI": {
           "$clickId": {
             ".validate": "newData.hasChildren(['timestamp'])"
@@ -247,7 +247,7 @@
         }
       }
     },
-    
+
     // ========== PUBLIC PROFILES (Friends Today) ==========
     // Authenticated users can read any public profile
     // Users can only write their own public profile
@@ -255,44 +255,44 @@
       "$uid": {
         ".read": "auth != null",
         ".write": "$uid === auth.uid",
-        
+
         "displayName": {
           ".validate": "newData.isString() && newData.val().length <= 50"
         },
-        
+
         "photoURL": {
           ".validate": "newData.isString() && newData.val().length <= 500"
         },
-        
+
         "inviteCode": {
           ".validate": "newData.isString() && newData.val().length <= 20"
         },
-        
+
         "gamesTracked": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
         },
-        
+
         "currentStreak": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
         },
-        
+
         "todayCount": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
         },
-        
+
         "lastUpdated": {
           ".validate": "newData.isNumber()"
         },
-        
+
         "lastActivity": {
           ".validate": "newData.hasChildren(['gameId', 'date'])"
         }
       }
     },
-    
+
     // ========== SERVER-ONLY PATHS ==========
     // These are written by Cloud Functions which bypass security rules
-    
+
     "purchases": {
       ".read": false,
       ".write": false,
@@ -300,27 +300,27 @@
         ".indexOn": ["stripeSessionId", "timestamp"]
       }
     },
-    
+
     "flaggedAccounts": {
       ".read": false,
       ".write": false
     },
-    
+
     "giftRedemptions": {
       ".read": false,
       ".write": false
     },
-    
+
     "hint-analytics": {
       ".read": false,
       ".write": false
     },
-    
+
     "securityAudit": {
       ".read": false,
       ".write": false
     },
-    
+
     // ========== COMMAND CENTER ==========
     // Client-side: read-only access to own data (browser dashboard).
     // Writes go through MCP server (Firebase Admin SDK, bypasses rules).
@@ -383,15 +383,427 @@
       }
     },
 
-    // ========== SHIR GLASSWORKS (REMOVED) ==========
-    // Migrated to standalone shir-glassworks Firebase project.
-    // Rules: stewartdavidp-ship-it/shirglassworks-functions/database.rules.json
+    // ========== MAST PLATFORM REGISTRY ==========
+    // Cross-tenant platform data: tenant configs, subscriptions, user-tenant mappings.
+    // Writable only by platform admins (listed in platformAdmins node).
+    // Bootstrap: first seed allowed when mast-platform doesn't exist yet.
+    "mast-platform": {
+      // Bootstrap: allow first seed if mast-platform doesn't exist yet.
+      // After seed, only platform admins can write (listed in platformAdmins node).
+      ".write": "auth != null && (!root.child('mast-platform').exists() || root.child('mast-platform/platformAdmins/' + auth.uid).val() === true)",
+
+      "userTenantMap": {
+        "$uid": {
+          ".read": "$uid === auth.uid"
+        }
+      },
+      "tenants": {
+        "$tid": {
+          // Tenant members can read their tenant's registry entry
+          ".read": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tid).exists()"
+        }
+      },
+      "tenantsByDomain": {
+        ".read": "auth != null"
+      }
+    },
+
+    // ========== TENANT DATA (Multi-Tenant) ==========
+    // All tenant business data lives under {tenantId}/ prefix.
+    // Access gated by mast-platform/userTenantMap membership + tenant-scoped RBAC roles.
+    //
+    // Expression legend (repeated inline — RTDB has no macros):
+    //   IS_TENANT_ADMIN = auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'
+    //   IS_STAFF = auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').exists() && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() !== 'guest'
+    //   IS_ROLE_ADMIN = auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() === 'admin'
+    "$tenantId": {
+      // Top-level write gate: platform-level tenant admin only
+      ".write": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'",
+
+      "public": {
+        ".read": true,
+
+        "events": {
+          ".indexOn": ["date", "visible"],
+          "$eventId": {
+            ".validate": "newData.hasChildren(['date', 'name', 'location', 'visible'])"
+          }
+        },
+        "gallery": {
+          ".indexOn": ["order", "visible", "category"],
+          "$imageId": {
+            ".validate": "newData.hasChildren(['url', 'alt', 'order', 'visible'])"
+          }
+        },
+        "products": {
+          "$productId": {
+            ".validate": "newData.hasChildren(['pid', 'name', 'url', 'categories'])"
+          }
+        }
+      },
+
+      // Customer accounts — each authenticated user can read/write their own record
+      "customers": {
+        "$uid": {
+          ".read": "auth.uid === $uid",
+          ".write": "auth.uid === $uid"
+        }
+      },
+
+      "admin": {
+        // Read: tenant admin (via platform registry) or any staff with non-guest RBAC role
+        ".read": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').exists() && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() !== 'guest')",
+
+        // Invites — admin can list all. Individual invite readable by any authenticated user
+        // (needed for first-login invite lookup by email key). Admin can write all.
+        // Acceptance: authenticated user can accept a pending invite, setting their own UID.
+        "invites": {
+          ".read": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() === 'admin')",
+          ".write": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() === 'admin')",
+          "$inviteKey": {
+            ".read": "auth != null",
+            ".write": "auth != null && data.exists() && data.child('status').val() === 'pending' && !data.child('acceptedByUid').exists() && newData.child('acceptedByUid').val() === auth.uid && newData.child('status').val() === 'accepted'"
+          }
+        },
+
+        // RBAC roles definition — staff/admin can read, admin-only write
+        "roles": {
+          ".read": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').exists() && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() !== 'guest')",
+          ".write": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'"
+        },
+
+        // RBAC user records — admin can write all.
+        // Users can create their own record on first sign-in (guest auto-provisioning)
+        // and update lastLoginAt on subsequent sign-ins. Role self-elevation blocked by .write + .validate.
+        "users": {
+          ".write": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'",
+          "$uid": {
+            ".read": "auth.uid === $uid",
+            ".write": "auth.uid === $uid && (!data.exists() ? newData.child('role').val() === 'guest' : newData.child('role').val() === data.child('role').val())",
+            ".validate": "newData.hasChildren(['role']) && (newData.child('role').val() === 'admin' || newData.child('role').val() === 'user' || newData.child('role').val() === 'guest')"
+          }
+        },
+
+        // GitHub token — admin-only read/write (sensitive credential)
+        "githubToken": {
+          ".write": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'",
+          ".read": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'"
+        },
+
+        // Settings — admin-only write
+        "settings": {
+          ".write": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'"
+        },
+
+        // Inventory — staff can write (POS needs to decrement stock during sales)
+        "inventory": {
+          ".write": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').exists() && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() !== 'guest')"
+        },
+
+        // Coupons — admin-only write
+        "coupons": {
+          ".write": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() === 'admin')"
+        },
+
+        // Sales — staff with non-guest role can write (POS operators need this)
+        "sales": {
+          ".write": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').exists() && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() !== 'guest')",
+          ".indexOn": ["timestamp", "status", "paymentType", "eventId"]
+        },
+        // SalesEvents — admin manages events, staff can update allocation sold counts (POS)
+        "salesEvents": {
+          ".write": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() === 'admin')",
+          ".indexOn": ["date", "status"],
+          "$eventId": {
+            "allocations": {
+              ".write": "auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').exists() && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() !== 'guest'"
+            }
+          }
+        },
+        "locations": {
+          ".write": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() === 'admin')",
+          ".indexOn": ["status", "type", "createdAt"]
+        },
+        "square-payments": {
+          ".write": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'",
+          ".indexOn": ["createdAt", "matchedSaleId", "status"]
+        },
+        "contacts": {
+          ".write": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() === 'admin')",
+          "$contactId": {
+            "interactions": {
+              ".indexOn": ["date"]
+            }
+          }
+        },
+
+        // Commissions — anonymous push-only writes from public website, admin reads inherited
+        "commissions": {
+          ".indexOn": ["status", "createdAt"],
+          "$commissionId": {
+            ".write": "!data.exists()",
+            ".validate": "newData.hasChildren(['customerName', 'customerContact', 'status', 'channel', 'createdAt']) && newData.child('customerName').isString() && newData.child('customerName').val().length >= 1 && newData.child('customerName').val().length <= 200 && newData.child('customerContact').isString() && newData.child('customerContact').val().length >= 1 && newData.child('customerContact').val().length <= 200 && (newData.child('status').val() === 'new') && (newData.child('channel').val() === 'web' || newData.child('channel').val() === 'pos') && newData.child('createdAt').isString()"
+          }
+        },
+
+        // Production — admin and operators can write
+        "production": {
+          ".write": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').exists() && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() !== 'guest')"
+        },
+
+        // Audit trail — global chronological log
+        // Append-only: any authenticated user can create entries, nobody can update/delete
+        "auditLog": {
+          ".indexOn": ["time", "event/entity"],
+          "$entryId": {
+            ".write": "auth != null && !data.exists()",
+            ".validate": "newData.hasChildren(['event', 'actor', 'time'])"
+          }
+        },
+
+        // Audit trail — per-entity index for record-level history
+        "auditIndex": {
+          "$entity": {
+            "$entityId": {
+              "$entryId": {
+                ".write": "auth != null && !data.exists()",
+                ".validate": "newData.hasChildren(['event', 'actor', 'time'])"
+              }
+            }
+          }
+        },
+
+        // Feedback settings — publicEnabled is publicly readable for widget visibility check
+        "feedbackSettings": {
+          "publicEnabled": {
+            ".read": true
+          }
+        },
+
+        // Testing Mode — each authenticated user reads/writes their own progress
+        "testingMode": {
+          "$uid": {
+            ".read": "auth.uid === $uid",
+            ".write": "auth.uid === $uid"
+          }
+        },
+
+        // Testing Missions — readable by any authenticated user, admin-only write
+        "testingMissions": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'"
+        },
+
+        // Default deny for any other admin sub-paths not explicitly listed
+        "$other": {
+          ".write": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'"
+        }
+      },
+
+      // Feedback reports — internal (authenticated push) and public (anonymous push with validation)
+      // Admin-only reads. Status lifecycle: open → triaged → in_progress → resolved
+      "feedbackReports": {
+        ".read": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').exists() && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() !== 'guest')",
+        ".indexOn": ["status", "appId", "source", "createdAt"],
+        "$reportId": {
+          ".write": "!data.exists()",
+          ".validate": "newData.hasChildren(['appId', 'source', 'type', 'description', 'status', 'timestamp']) && newData.child('appId').isString() && newData.child('appId').val().length <= 100 && (newData.child('source').val() === 'internal' || newData.child('source').val() === 'public') && (newData.child('type').val() === 'bug' || newData.child('type').val() === 'enhancement' || newData.child('type').val() === 'question' || newData.child('type').val() === 'suggestion') && newData.child('description').isString() && newData.child('description').val().length >= 1 && newData.child('description').val().length <= 2000 && newData.child('status').val() === 'open'"
+        }
+      },
+
+      // Newsletter & Blog — issue composition, subscribers, blog posts
+      "newsletter": {
+        // Issues — staff can read, admin can write
+        "issues": {
+          ".read": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').exists() && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() !== 'guest')",
+          ".write": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() === 'admin')",
+          ".indexOn": ["status", "issueNumber", "publishedAt"],
+          "$issueId": {
+            ".validate": "newData.hasChildren(['issueNumber', 'status', 'createdAt'])",
+            "sections": {
+              "$sectionId": {
+                ".validate": "newData.hasChildren(['type', 'title', 'order', 'included'])"
+              }
+            }
+          }
+        },
+        // Issue counter — admin-only, atomic increment
+        "meta": {
+          ".read": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').exists() && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() !== 'guest')",
+          ".write": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() === 'admin')"
+        },
+        // Subscribers — admin can read/write all.
+        // Public sign-up form: unauthenticated push-only writes with forced source.
+        // Unsubscribe: update status to unsubscribed using token match.
+        "subscribers": {
+          ".read": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() === 'admin')",
+          ".write": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() === 'admin')",
+          ".indexOn": ["email", "status", "unsubscribeToken"],
+          "$subscriberId": {
+            // Public push: anyone can create a new subscriber record (sign-up form)
+            ".write": "!data.exists() && newData.hasChildren(['email', 'name', 'subscribedAt', 'source', 'status', 'unsubscribeToken']) && newData.child('source').val() === 'website-form' && newData.child('status').val() === 'active' && newData.child('email').isString() && newData.child('email').val().length >= 3 && newData.child('email').val().length <= 254 && newData.child('name').isString() && newData.child('name').val().length >= 1 && newData.child('name').val().length <= 200",
+            // Unsubscribe: allow status update if token matches
+            "status": {
+              ".write": "newData.val() === 'unsubscribed' && data.parent().child('unsubscribeToken').val() === newData.parent().child('unsubscribeToken').val()"
+            },
+            "unsubscribedAt": {
+              ".write": "data.parent().child('status').val() === 'active' || newData.parent().child('status').val() === 'unsubscribed'"
+            }
+          }
+        },
+        // Published blog posts — public read for blog pages
+        "published": {
+          ".read": true,
+          ".write": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() === 'admin')",
+          ".indexOn": ["publishedAt"],
+          "$postId": {
+            ".validate": "newData.hasChildren(['issueNumber', 'title', 'slug', 'publishedAt', 'sections'])"
+          }
+        }
+      },
+
+      // Blog — Artist voice posts, ideas, and meta
+      "blog": {
+        "posts": {
+          ".read": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').exists() && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() !== 'guest')",
+          ".write": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() === 'admin')",
+          ".indexOn": ["createdAt", "status", "author"]
+        },
+        "ideas": {
+          ".read": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').exists() && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() !== 'guest')",
+          ".write": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() === 'admin')",
+          ".indexOn": ["createdAt"]
+        },
+        "meta": {
+          ".read": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').exists() && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() !== 'guest')",
+          ".write": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() === 'admin')"
+        },
+        // Published blog posts — public read for blog pages
+        "published": {
+          ".read": true,
+          ".write": "(auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin') || (auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() === 'admin')",
+          ".indexOn": ["publishedAt", "slug"]
+        }
+      },
+
+      // Market — Social media pipeline, per-user content
+      "market": {
+        "pendingClips": {
+          "$uid": {
+            ".read": "auth.uid === $uid || (auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin')",
+            ".write": "auth.uid === $uid || (auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin')",
+            "$clipId": {
+              ".validate": "newData.hasChildren(['clipId', 'fileName', 'uploadedAt', 'status', 'fileType'])"
+            }
+          }
+        },
+        "posts": {
+          "$uid": {
+            ".read": "auth.uid === $uid || (auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin')",
+            ".write": "auth.uid === $uid || (auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin')",
+            ".indexOn": ["postedAt", "treatment"],
+            "$postId": {
+              ".validate": "newData.hasChildren(['postId', 'treatment', 'platforms', 'postedAt'])"
+            }
+          }
+        }
+      },
+
+      // Workflows YAML — readable by authenticated users (Studio Assistant loads via admin SDK)
+      "workflows": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'"
+      },
+
+      // ========== TRIPS & MILEAGE ==========
+      // Per-user trip logs. Admin can read all (all-drivers view). Each user reads/writes own.
+      "trips": {
+        ".read": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'",
+        "$uid": {
+          ".read": "auth.uid === $uid",
+          ".write": "auth.uid === $uid || (auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin')",
+          "$tripId": {
+            ".indexOn": ["status", "startTime"]
+          }
+        }
+      },
+
+      // Shared trip locations (destinations). Staff can read/write (new destinations saved on trip start).
+      "tripLocations": {
+        ".read": "auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').exists() && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() !== 'guest'",
+        ".write": "auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').exists() && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() !== 'guest'"
+      },
+
+      // App-wide settings (IRS mileage rates, etc.). Staff reads, admin writes.
+      "settings": {
+        ".read": "auth != null && root.child($tenantId + '/admin/users/' + auth.uid + '/role').exists() && root.child($tenantId + '/admin/users/' + auth.uid + '/role').val() !== 'guest'",
+        ".write": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'"
+      },
+
+      // Per-user quick action counters (dashboard frequency sorting).
+      "quickActions": {
+        "$uid": {
+          ".read": "auth.uid === $uid || (auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin')",
+          ".write": "auth.uid === $uid || (auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin')"
+        }
+      },
+
+      // Image library: public read (shop/gallery display), admin write (via top-level .write)
+      "images": {
+        ".read": true
+      },
+
+      // Analytics: anonymous push-only writes, admin-only reads
+      "analytics": {
+        "hits": {
+          ".read": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'",
+          ".indexOn": ["ts", "d"],
+          "$hitId": {
+            ".write": "!data.exists()",
+            ".validate": "newData.hasChildren(['t','p','ts','d']) && (newData.child('t').val() === 'pv' || newData.child('t').val() === 'ev') && newData.child('ts').isNumber() && newData.child('ts').val() > 1700000000000 && newData.child('ts').val() < 2000000000000 && newData.child('p').isString() && newData.child('p').val().length <= 20 && newData.child('d').isString() && newData.child('d').val().length === 10 && (!newData.hasChild('a') || (newData.child('a').isString() && newData.child('a').val().length <= 40)) && (!newData.hasChild('ip') || (newData.child('ip').isString() && newData.child('ip').val().length <= 45))"
+          }
+        }
+      },
+
+      // User carts: each authenticated user can read/write their own cart
+      "users": {
+        "$uid": {
+          ".read": "auth.uid === $uid",
+          ".write": "auth.uid === $uid",
+          "cart": {
+            "$itemId": {
+              ".validate": "newData.hasChildren(['pid','name','qty']) && newData.child('pid').isString() && newData.child('qty').isNumber() && newData.child('qty').val() >= 1 && newData.child('qty').val() <= 10"
+            }
+          }
+        }
+      },
+
+      // Orders: written by Cloud Functions (submit) + admin (status updates)
+      // Individual order status is publicly readable (orderId acts as auth token)
+      // for the confirmation page Firebase listener
+      "orders": {
+        ".read": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'",
+        ".write": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'",
+        ".indexOn": ["squareOrderId", "etsyReceiptId", "source", "uid", "orderNumber"],
+        "$orderId": {
+          "status": {
+            ".read": true
+          }
+        }
+      },
+
+      // Private config: admin-only metadata (environment, locationId, shopId, etc.)
+      // Secrets (accessToken, webhookSignatureKey, apiKey, refreshToken) have been migrated
+      // to GCP Secret Manager and removed from RTDB. Admin UI uses shirSecretsManager callable.
+      "config": {
+        ".read": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'",
+        ".write": "auth != null && root.child('mast-platform/userTenantMap/' + auth.uid + '/' + $tenantId + '/role').val() === 'admin'"
+      }
+    },
 
     // ========== DEFAULT DENY ==========
-    // Deny all other paths
-    "$other": {
-      ".read": false,
-      ".write": false
-    }
+    // $tenantId wildcard above already catches unknown top-level paths.
+    // Tenant data requires mast-platform membership — effectively denied for non-members.
+    // Explicit paths (users, command-center, mast-platform) take precedence over the wildcard.
   }
 }
